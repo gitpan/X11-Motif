@@ -11,10 +11,12 @@ BEGIN {
     $VERSION = 1.0;
     @ISA = qw(DynaLoader);
 
+    use X11::LibCons;
+
     bootstrap X11::Lib;
 }
 
-sub beta_version { 1 };
+sub beta_version { 2 };
 
 sub alias_trimmed_pattern {
     my($pkg, $stab, $pattern) = @_;
@@ -142,6 +144,10 @@ package X::Event::MotionEvent;
 package X::Event::ButtonEvent;
     use vars qw(@ISA);
     @ISA = qw(X::Event::_XY);
+
+package X::Event::ButtonPressedEvent;
+    use vars qw(@ISA);
+    @ISA = qw(X::Event::ButtonEvent);
 
 package X::Event::KeyEvent;
     use vars qw(@ISA);

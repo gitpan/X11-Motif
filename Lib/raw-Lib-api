@@ -1,19 +1,19 @@
-int
+void
 XActivateScreenSaver(display)
 	Display *		display
 
-int
+void
 XAddHost(display, host)
 	Display *		display
 	XHostAddress *		host
 
-int
+void
 XAddHosts(display, hosts, num_hosts)
 	Display *		display
 	XHostAddress *		hosts
 	int			num_hosts
 
-int
+void
 XAddToSaveSet(display, w)
 	Display *		display
 	Window			w
@@ -37,24 +37,34 @@ XAllocColorCells(display, colormap, contig, plane_masks_return, nplanes, pixels_
 	Display *		display
 	Colormap		colormap
 	int			contig
-	unsigned long *		plane_masks_return
+	unsigned long  		&plane_masks_return
 	unsigned int		nplanes
-	unsigned long *		pixels_return
+	unsigned long  		&pixels_return
 	unsigned int		npixels
+	OUTPUT:
+	    RETVAL
+	    plane_masks_return
+	    pixels_return
 
 int
 XAllocColorPlanes(display, colormap, contig, pixels_return, ncolors, nreds, ngreens, nblues, rmask_return, gmask_return, bmask_return)
 	Display *		display
 	Colormap		colormap
 	int			contig
-	unsigned long *		pixels_return
+	unsigned long  		&pixels_return
 	int			ncolors
 	int			nreds
 	int			ngreens
 	int			nblues
-	unsigned long *		rmask_return
-	unsigned long *		gmask_return
-	unsigned long *		bmask_return
+	unsigned long  		&rmask_return
+	unsigned long  		&gmask_return
+	unsigned long  		&bmask_return
+	OUTPUT:
+	    RETVAL
+	    pixels_return
+	    rmask_return
+	    gmask_return
+	    bmask_return
 
 XIconSize *
 XAllocIconSize()
@@ -80,17 +90,17 @@ XWMHints *
 XAllocWMHints()
 
 
-int
+void
 XAllowEvents(display, event_mode, time)
 	Display *		display
 	int			event_mode
 	Time			time
 
-int
+void
 XAutoRepeatOff(display)
 	Display *		display
 
-int
+void
 XAutoRepeatOn(display)
 	Display *		display
 
@@ -98,7 +108,7 @@ char *
 XBaseFontNameListOfFontSet(font_set)
 	XFontSet		font_set
 
-int
+void
 XBell(display, percent)
 	Display *		display
 	int			percent
@@ -128,21 +138,21 @@ int
 XCellsOfScreen(screen)
 	Screen *		screen
 
-int
+void
 XChangeActivePointerGrab(display, event_mask, cursor, time)
 	Display *		display
 	unsigned int		event_mask
 	Cursor			cursor
 	Time			time
 
-int
+void
 XChangeGC(display, gc, valuemask, values)
 	Display *		display
 	GC			gc
 	unsigned long		valuemask
 	XGCValues *		values
 
-int
+void
 XChangeKeyboardControl(display, value_mask, values)
 	Display *		display
 	unsigned long		value_mask
@@ -156,7 +166,7 @@ XChangeKeyboardMapping(display, first_keycode, keysyms_per_keycode, keysyms, num
 	KeySym *		keysyms
 	int			num_codes
 
-int
+void
 XChangePointerControl(display, do_accel, do_threshold, accel_numerator, accel_denominator, threshold)
 	Display *		display
 	int			do_accel
@@ -165,7 +175,7 @@ XChangePointerControl(display, do_accel, do_threshold, accel_numerator, accel_de
 	int			accel_denominator
 	int			threshold
 
-int
+void
 XChangeProperty(display, w, property, type, format, mode, data, nelements)
 	Display *		display
 	Window			w
@@ -176,13 +186,13 @@ XChangeProperty(display, w, property, type, format, mode, data, nelements)
 	unsigned char *		data
 	int			nelements
 
-int
+void
 XChangeSaveSet(display, w, change_mode)
 	Display *		display
 	Window			w
 	int			change_mode
 
-int
+void
 XChangeWindowAttributes(display, w, valuemask, attributes)
 	Display *		display
 	Window			w
@@ -215,23 +225,23 @@ XCheckWindowEvent(display, w, event_mask, event_return)
 	long			event_mask
 	XEvent *		event_return
 
-int
+void
 XCirculateSubwindows(display, w, direction)
 	Display *		display
 	Window			w
 	int			direction
 
-int
+void
 XCirculateSubwindowsDown(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XCirculateSubwindowsUp(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XClearArea(display, w, x, y, width, height, exposures)
 	Display *		display
 	Window			w
@@ -241,12 +251,12 @@ XClearArea(display, w, x, y, width, height, exposures)
 	unsigned int		height
 	int			exposures
 
-int
+void
 XClearWindow(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XClipBox(r, rect_return)
 	Region			r
 	XRectangle *		rect_return
@@ -255,7 +265,7 @@ int
 XCloseDisplay(display)
 	Display *		display
 
-int
+void
 XConfigureWindow(display, w, value_mask, values)
 	Display *		display
 	Window			w
@@ -270,7 +280,7 @@ int
 XContextDependentDrawing(font_set)
 	XFontSet		font_set
 
-int
+void
 XConvertSelection(display, selection, target, property, requestor, time)
 	Display *		display
 	Atom			selection
@@ -279,7 +289,7 @@ XConvertSelection(display, selection, target, property, requestor, time)
 	Window			requestor
 	Time			time
 
-int
+void
 XCopyArea(display, src, dest, gc, src_x, src_y, width, height, dest_x, dest_y)
 	Display *		display
 	Drawable		src
@@ -297,14 +307,14 @@ XCopyColormapAndFree(display, colormap)
 	Display *		display
 	Colormap		colormap
 
-int
+void
 XCopyGC(display, src, valuemask, dest)
 	Display *		display
 	GC			src
 	unsigned long		valuemask
 	GC			dest
 
-int
+void
 XCopyPlane(display, src, dest, gc, src_x, src_y, width, height, dest_x, dest_y, plane)
 	Display *		display
 	Drawable		src
@@ -488,7 +498,7 @@ Visual *
 XDefaultVisualOfScreen(screen)
 	Screen *		screen
 
-int
+void
 XDefineCursor(display, w, cursor)
 	Display *		display
 	Window			w
@@ -506,27 +516,27 @@ XDeleteModifiermapEntry(modmap, keycode_entry, modifier)
 	unsigned int		keycode_entry
 	int			modifier
 
-int
+void
 XDeleteProperty(display, w, property)
 	Display *		display
 	Window			w
 	Atom			property
 
-int
+void
 XDestroyRegion(r)
 	Region			r
 
-int
+void
 XDestroySubwindows(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XDestroyWindow(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XDisableAccessControl(display)
 	Display *		display
 
@@ -545,11 +555,14 @@ XDisplayHeightMM(display, screen_number)
 	Display *		display
 	int			screen_number
 
-int
+void
 XDisplayKeycodes(display, min_keycodes_return, max_keycodes_return)
 	Display *		display
-	int *			min_keycodes_return
-	int *			max_keycodes_return
+	int  			&min_keycodes_return
+	int  			&max_keycodes_return
+	OUTPUT:
+	    min_keycodes_return
+	    max_keycodes_return
 
 unsigned long
 XDisplayMotionBufferSize(display)
@@ -590,7 +603,7 @@ int
 XDoesSaveUnders(screen)
 	Screen *		screen
 
-int
+void
 XDrawArc(display, d, gc, x, y, width, height, angle1, angle2)
 	Display *		display
 	Drawable		d
@@ -602,7 +615,7 @@ XDrawArc(display, d, gc, x, y, width, height, angle1, angle2)
 	int			angle1
 	int			angle2
 
-int
+void
 XDrawArcs(display, d, gc, arcs, narcs)
 	Display *		display
 	Drawable		d
@@ -630,17 +643,17 @@ XDrawImageString16(display, d, gc, x, y, string, length)
 	XChar2b *		string
 	int			length
 
-int
-XDrawLine(display, d, gc, x1, y1, x2, y2)
+void
+XDrawLine(display, d, gc, x1, x2, y1, y2)
 	Display *		display
 	Drawable		d
 	GC			gc
 	int			x1
-	int			y1
 	int			x2
+	int			y1
 	int			y2
 
-int
+void
 XDrawLines(display, d, gc, points, npoints, mode)
 	Display *		display
 	Drawable		d
@@ -649,7 +662,7 @@ XDrawLines(display, d, gc, points, npoints, mode)
 	int			npoints
 	int			mode
 
-int
+void
 XDrawPoint(display, d, gc, x, y)
 	Display *		display
 	Drawable		d
@@ -657,7 +670,7 @@ XDrawPoint(display, d, gc, x, y)
 	int			x
 	int			y
 
-int
+void
 XDrawPoints(display, d, gc, points, npoints, mode)
 	Display *		display
 	Drawable		d
@@ -666,7 +679,7 @@ XDrawPoints(display, d, gc, points, npoints, mode)
 	int			npoints
 	int			mode
 
-int
+void
 XDrawRectangle(display, d, gc, x, y, width, height)
 	Display *		display
 	Drawable		d
@@ -676,7 +689,7 @@ XDrawRectangle(display, d, gc, x, y, width, height)
 	unsigned int		width
 	unsigned int		height
 
-int
+void
 XDrawRectangles(display, d, gc, rectangles, nrectangles)
 	Display *		display
 	Drawable		d
@@ -684,7 +697,7 @@ XDrawRectangles(display, d, gc, rectangles, nrectangles)
 	XRectangle *		rectangles
 	int			nrectangles
 
-int
+void
 XDrawSegments(display, d, gc, segments, nsegments)
 	Display *		display
 	Drawable		d
@@ -722,7 +735,7 @@ XDrawText(display, d, gc, x, y, items, nitems)
 	XTextItem *		items
 	int			nitems
 
-int
+void
 XDrawText16(display, d, gc, x, y, items, nitems)
 	Display *		display
 	Drawable		d
@@ -736,7 +749,7 @@ int
 XEmptyRegion(r)
 	Region			r
 
-int
+void
 XEnableAccessControl(display)
 	Display *		display
 
@@ -765,13 +778,19 @@ XExtentsOfFontSet(font_set)
 char *
 XFetchBuffer(display, nbytes_return, buffer)
 	Display *		display
-	int *			nbytes_return
+	int  			&nbytes_return
 	int			buffer
+	OUTPUT:
+	    RETVAL
+	    nbytes_return
 
 char *
 XFetchBytes(display, nbytes_return)
 	Display *		display
-	int *			nbytes_return
+	int  			&nbytes_return
+	OUTPUT:
+	    RETVAL
+	    nbytes_return
 
 int
 XFetchName(display, w, window_name_return)
@@ -779,7 +798,7 @@ XFetchName(display, w, window_name_return)
 	Window			w
 	char **			window_name_return
 
-int
+void
 XFillArc(display, d, gc, x, y, width, height, angle1, angle2)
 	Display *		display
 	Drawable		d
@@ -791,7 +810,7 @@ XFillArc(display, d, gc, x, y, width, height, angle1, angle2)
 	int			angle1
 	int			angle2
 
-int
+void
 XFillArcs(display, d, gc, arcs, narcs)
 	Display *		display
 	Drawable		d
@@ -799,7 +818,7 @@ XFillArcs(display, d, gc, arcs, narcs)
 	XArc *			arcs
 	int			narcs
 
-int
+void
 XFillPolygon(display, d, gc, points, npoints, shape, mode)
 	Display *		display
 	Drawable		d
@@ -809,7 +828,7 @@ XFillPolygon(display, d, gc, points, npoints, shape, mode)
 	int			shape
 	int			mode
 
-int
+void
 XFillRectangle(display, d, gc, x, y, width, height)
 	Display *		display
 	Drawable		d
@@ -819,7 +838,7 @@ XFillRectangle(display, d, gc, x, y, width, height)
 	unsigned int		width
 	unsigned int		height
 
-int
+void
 XFillRectangles(display, d, gc, rectangles, nrectangles)
 	Display *		display
 	Drawable		d
@@ -839,7 +858,7 @@ XFindContext(display, rid, context, data_return)
 	XContext		context
 	XPointer *		data_return
 
-int
+void
 XFlush(display)
 	Display *		display
 
@@ -854,7 +873,7 @@ XFontsOfFontSet(font_set, font_struct_list, font_name_list)
 	XFontStruct ***		font_struct_list
 	char ***		font_name_list
 
-int
+void
 XForceScreenSaver(display, mode)
 	Display *		display
 	int			mode
@@ -874,10 +893,16 @@ XGeometry(display, screen, position, default_position, bwidth, fwidth, fheight, 
 	unsigned int		fheight
 	int			xadder
 	int			yadder
-	int *			x_return
-	int *			y_return
-	int *			width_return
-	int *			height_return
+	int  			&x_return
+	int  			&y_return
+	int  			&width_return
+	int  			&height_return
+	OUTPUT:
+	    RETVAL
+	    x_return
+	    y_return
+	    width_return
+	    height_return
 
 char *
 XGetAtomName(display, atom)
@@ -895,7 +920,10 @@ XGetCommand(display, w, argv_return, argc_return)
 	Display *		display
 	Window			w
 	char ***		argv_return
-	int *			argc_return
+	int  			&argc_return
+	OUTPUT:
+	    RETVAL
+	    argc_return
 
 char *
 XGetDefault(display, program, option)
@@ -922,13 +950,19 @@ XGetErrorText(display, code, buffer_return, length)
 char **
 XGetFontPath(display, npaths_return)
 	Display *		display
-	int *			npaths_return
+	int  			&npaths_return
+	OUTPUT:
+	    RETVAL
+	    npaths_return
 
 int
 XGetFontProperty(font_struct, atom, value_return)
 	XFontStruct *		font_struct
 	Atom			atom
-	unsigned long *		value_return
+	unsigned long  		&value_return
+	OUTPUT:
+	    RETVAL
+	    value_return
 
 int
 XGetGCValues(display, gc, valuemask, values_return)
@@ -941,13 +975,22 @@ int
 XGetGeometry(display, d, root_return, x_return, y_return, width_return, height_return, border_width_return, depth_return)
 	Display *		display
 	Drawable		d
-	Window *		root_return
-	int *			x_return
-	int *			y_return
-	unsigned int *		width_return
-	unsigned int *		height_return
-	unsigned int *		border_width_return
-	unsigned int *		depth_return
+	Window  		&root_return
+	int  			&x_return
+	int  			&y_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	unsigned int  		&border_width_return
+	unsigned int  		&depth_return
+	OUTPUT:
+	    RETVAL
+	    root_return
+	    x_return
+	    y_return
+	    width_return
+	    height_return
+	    border_width_return
+	    depth_return
 
 int
 XGetIconName(display, w, icon_name_return)
@@ -960,7 +1003,10 @@ XGetIconSizes(display, w, size_list_return, count_return)
 	Display *		display
 	Window			w
 	XIconSize **		size_list_return
-	int *			count_return
+	int  			&count_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 XImage *
 XGetImage(display, d, x, y, width, height, plane_mask, format)
@@ -973,13 +1019,16 @@ XGetImage(display, d, x, y, width, height, plane_mask, format)
 	unsigned long		plane_mask
 	int			format
 
-int
+void
 XGetInputFocus(display, focus_return, revert_to_return)
 	Display *		display
-	Window *		focus_return
-	int *			revert_to_return
+	Window  		&focus_return
+	int  			&revert_to_return
+	OUTPUT:
+	    focus_return
+	    revert_to_return
 
-int
+void
 XGetKeyboardControl(display, values_return)
 	Display *		display
 	XKeyboardState *	values_return
@@ -989,7 +1038,10 @@ XGetKeyboardMapping(display, first_keycode, keycode_count, keysyms_per_keycode_r
 	Display *		display
 	unsigned int		first_keycode
 	int			keycode_count
-	int *			keysyms_per_keycode_return
+	int  			&keysyms_per_keycode_return
+	OUTPUT:
+	    RETVAL
+	    keysyms_per_keycode_return
 
 XModifierKeymap *
 XGetModifierMapping(display)
@@ -1001,7 +1053,10 @@ XGetMotionEvents(display, w, start, stop, nevents_return)
 	Window			w
 	Time			start
 	Time			stop
-	int *			nevents_return
+	int  			&nevents_return
+	OUTPUT:
+	    RETVAL
+	    nevents_return
 
 int
 XGetNormalHints(display, w, hints_return)
@@ -1009,12 +1064,16 @@ XGetNormalHints(display, w, hints_return)
 	Window			w
 	XSizeHints *		hints_return
 
-int
+void
 XGetPointerControl(display, accel_numerator_return, accel_denominator_return, threshold_return)
 	Display *		display
-	int *			accel_numerator_return
-	int *			accel_denominator_return
-	int *			threshold_return
+	int  			&accel_numerator_return
+	int  			&accel_denominator_return
+	int  			&threshold_return
+	OUTPUT:
+	    accel_numerator_return
+	    accel_denominator_return
+	    threshold_return
 
 int
 XGetPointerMapping(display, map_return, nmap)
@@ -1027,16 +1086,24 @@ XGetRGBColormaps(display, w, stdcmap_return, count_return, property)
 	Display *		display
 	Window			w
 	XStandardColormap **	stdcmap_return
-	int *			count_return
+	int  			&count_return
 	Atom			property
+	OUTPUT:
+	    RETVAL
+	    count_return
 
-int
+void
 XGetScreenSaver(display, timeout_return, interval_return, prefer_blanking_return, allow_exposures_return)
 	Display *		display
-	int *			timeout_return
-	int *			interval_return
-	int *			prefer_blanking_return
-	int *			allow_exposures_return
+	int  			&timeout_return
+	int  			&interval_return
+	int  			&prefer_blanking_return
+	int  			&allow_exposures_return
+	OUTPUT:
+	    timeout_return
+	    interval_return
+	    prefer_blanking_return
+	    allow_exposures_return
 
 Window
 XGetSelectionOwner(display, selection)
@@ -1082,14 +1149,20 @@ int
 XGetTransientForHint(display, w, prop_window_return)
 	Display *		display
 	Window			w
-	Window *		prop_window_return
+	Window  		&prop_window_return
+	OUTPUT:
+	    RETVAL
+	    prop_window_return
 
 XVisualInfo *
 XGetVisualInfo(display, vinfo_mask, vinfo_template, nitems_return)
 	Display *		display
 	long			vinfo_mask
 	XVisualInfo *		vinfo_template
-	int *			nitems_return
+	int  			&nitems_return
+	OUTPUT:
+	    RETVAL
+	    nitems_return
 
 int
 XGetWMClientMachine(display, w, text_prop_return)
@@ -1102,7 +1175,10 @@ XGetWMColormapWindows(display, w, windows_return, count_return)
 	Display *		display
 	Window			w
 	Window **		windows_return
-	int *			count_return
+	int  			&count_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 XWMHints *
 XGetWMHints(display, w)
@@ -1126,22 +1202,31 @@ XGetWMNormalHints(display, w, hints_return, supplied_return)
 	Display *		display
 	Window			w
 	XSizeHints *		hints_return
-	long *			supplied_return
+	long  			&supplied_return
+	OUTPUT:
+	    RETVAL
+	    supplied_return
 
 int
 XGetWMProtocols(display, w, protocols_return, count_return)
 	Display *		display
 	Window			w
 	Atom **			protocols_return
-	int *			count_return
+	int  			&count_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 int
 XGetWMSizeHints(display, w, hints_return, supplied_return, property)
 	Display *		display
 	Window			w
 	XSizeHints *		hints_return
-	long *			supplied_return
+	long  			&supplied_return
 	Atom			property
+	OUTPUT:
+	    RETVAL
+	    supplied_return
 
 int
 XGetWindowAttributes(display, w, window_attributes_return)
@@ -1158,11 +1243,17 @@ XGetWindowProperty(display, w, property, long_offset, long_length, delete, req_t
 	long			long_length
 	int			delete
 	Atom			req_type
-	Atom *			actual_type_return
-	int *			actual_format_return
-	unsigned long *		nitems_return
-	unsigned long *		bytes_after_return
+	Atom  			&actual_type_return
+	int  			&actual_format_return
+	unsigned long  		&nitems_return
+	unsigned long  		&bytes_after_return
 	unsigned char **	prop_return
+	OUTPUT:
+	    RETVAL
+	    actual_type_return
+	    actual_format_return
+	    nitems_return
+	    bytes_after_return
 
 int
 XGetZoomHints(display, w, zhints_return)
@@ -1170,7 +1261,7 @@ XGetZoomHints(display, w, zhints_return)
 	Window			w
 	XSizeHints *		zhints_return
 
-int
+void
 XGrabButton(display, button, modifiers, grab_window, owner_events, event_mask, pointer_mode, keyboard_mode, confine_to, cursor)
 	Display *		display
 	unsigned int		button
@@ -1183,7 +1274,7 @@ XGrabButton(display, button, modifiers, grab_window, owner_events, event_mask, p
 	Window			confine_to
 	Cursor			cursor
 
-int
+void
 XGrabKey(display, keycode, modifiers, grab_window, owner_events, pointer_mode, keyboard_mode)
 	Display *		display
 	int			keycode
@@ -1214,7 +1305,7 @@ XGrabPointer(display, grab_window, owner_events, event_mask, pointer_mode, keybo
 	Cursor			cursor
 	Time			time
 
-int
+void
 XGrabServer(display)
 	Display *		display
 
@@ -1236,13 +1327,17 @@ int
 XImageByteOrder(display)
 	Display *		display
 
+int
+XInitThreads()
+
+
 XModifierKeymap *
 XInsertModifiermapEntry(modmap, keycode_entry, modifier)
 	XModifierKeymap *	modmap
 	unsigned int		keycode_entry
 	int			modifier
 
-int
+void
 XInstallColormap(display, colormap)
 	Display *		display
 	Colormap		colormap
@@ -1274,7 +1369,7 @@ char *
 XKeysymToString(keysym)
 	KeySym			keysym
 
-int
+void
 XKillClient(display, resource)
 	Display *		display
 	XID			resource
@@ -1287,50 +1382,75 @@ int *
 XListDepths(display, screen_number, count_return)
 	Display *		display
 	int			screen_number
-	int *			count_return
+	int  			&count_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 char **
 XListExtensions(display, nextensions_return)
 	Display *		display
-	int *			nextensions_return
+	int  			&nextensions_return
+	OUTPUT:
+	    RETVAL
+	    nextensions_return
 
 char **
 XListFonts(display, pattern, maxnames, actual_count_return)
 	Display *		display
 	char *			pattern
 	int			maxnames
-	int *			actual_count_return
+	int  			&actual_count_return
+	OUTPUT:
+	    RETVAL
+	    actual_count_return
 
 char **
 XListFontsWithInfo(display, pattern, maxnames, count_return, info_return)
 	Display *		display
 	char *			pattern
 	int			maxnames
-	int *			count_return
+	int  			&count_return
 	XFontStruct **		info_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 XHostAddress *
 XListHosts(display, nhosts_return, state_return)
 	Display *		display
-	int *			nhosts_return
-	int *			state_return
+	int  			&nhosts_return
+	int  			&state_return
+	OUTPUT:
+	    RETVAL
+	    nhosts_return
+	    state_return
 
 Colormap *
 XListInstalledColormaps(display, w, num_return)
 	Display *		display
 	Window			w
-	int *			num_return
+	int  			&num_return
+	OUTPUT:
+	    RETVAL
+	    num_return
 
 XPixmapFormatValues *
 XListPixmapFormats(display, count_return)
 	Display *		display
-	int *			count_return
+	int  			&count_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 Atom *
 XListProperties(display, w, num_prop_return)
 	Display *		display
 	Window			w
-	int *			num_prop_return
+	int  			&num_prop_return
+	OUTPUT:
+	    RETVAL
+	    num_prop_return
 
 Font
 XLoadFont(display, name)
@@ -1345,6 +1465,10 @@ XLoadQueryFont(display, name)
 char *
 XLocaleOfFontSet(font_set)
 	XFontSet		font_set
+
+void
+XLockDisplay(display)
+	Display *		display
 
 int
 XLookupColor(display, colormap, color_name, exact_def_return, screen_def_return)
@@ -1367,22 +1491,22 @@ XLookupString(event_struct, buffer_return, bytes_buffer, keysym_return, status_i
 	KeySym *		keysym_return
 	XComposeStatus *	status_in_out
 
-int
+void
 XLowerWindow(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XMapRaised(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XMapSubwindows(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XMapWindow(display, w)
 	Display *		display
 	Window			w
@@ -1413,7 +1537,7 @@ int
 XMinCmapsOfScreen(screen)
 	Screen *		screen
 
-int
+void
 XMoveResizeWindow(display, w, x, y, width, height)
 	Display *		display
 	Window			w
@@ -1422,7 +1546,7 @@ XMoveResizeWindow(display, w, x, y, width, height)
 	unsigned int		width
 	unsigned int		height
 
-int
+void
 XMoveWindow(display, w, x, y)
 	Display *		display
 	Window			w
@@ -1442,11 +1566,11 @@ unsigned long
 XNextRequest(display)
 	Display *		display
 
-int
+void
 XNoOp(display)
 	Display *		display
 
-int
+void
 XOffsetRegion(r, dx, dy)
 	Region			r
 	int			dx
@@ -1466,12 +1590,18 @@ XParseColor(display, colormap, spec, exact_def_return)
 int
 XParseGeometry(parsestring, x_return, y_return, width_return, height_return)
 	char *			parsestring
-	int *			x_return
-	int *			y_return
-	unsigned int *		width_return
-	unsigned int *		height_return
+	int  			&x_return
+	int  			&y_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	OUTPUT:
+	    RETVAL
+	    x_return
+	    y_return
+	    width_return
+	    height_return
 
-int
+void
 XPeekEvent(display, event_return)
 	Display *		display
 	XEvent *		event_return
@@ -1532,8 +1662,12 @@ XQueryBestCursor(display, d, width, height, width_return, height_return)
 	Drawable		d
 	unsigned int		width
 	unsigned int		height
-	unsigned int *		width_return
-	unsigned int *		height_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	OUTPUT:
+	    RETVAL
+	    width_return
+	    height_return
 
 int
 XQueryBestSize(display, class, which_screen, width, height, width_return, height_return)
@@ -1542,8 +1676,12 @@ XQueryBestSize(display, class, which_screen, width, height, width_return, height
 	Drawable		which_screen
 	unsigned int		width
 	unsigned int		height
-	unsigned int *		width_return
-	unsigned int *		height_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	OUTPUT:
+	    RETVAL
+	    width_return
+	    height_return
 
 int
 XQueryBestStipple(display, which_screen, width, height, width_return, height_return)
@@ -1551,8 +1689,12 @@ XQueryBestStipple(display, which_screen, width, height, width_return, height_ret
 	Drawable		which_screen
 	unsigned int		width
 	unsigned int		height
-	unsigned int *		width_return
-	unsigned int *		height_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	OUTPUT:
+	    RETVAL
+	    width_return
+	    height_return
 
 int
 XQueryBestTile(display, which_screen, width, height, width_return, height_return)
@@ -1560,16 +1702,20 @@ XQueryBestTile(display, which_screen, width, height, width_return, height_return
 	Drawable		which_screen
 	unsigned int		width
 	unsigned int		height
-	unsigned int *		width_return
-	unsigned int *		height_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	OUTPUT:
+	    RETVAL
+	    width_return
+	    height_return
 
-int
+void
 XQueryColor(display, colormap, def_in_out)
 	Display *		display
 	Colormap		colormap
 	XColor *		def_in_out
 
-int
+void
 XQueryColors(display, colormap, defs_in_out, ncolors)
 	Display *		display
 	Colormap		colormap
@@ -1580,9 +1726,14 @@ int
 XQueryExtension(display, name, major_opcode_return, first_event_return, first_error_return)
 	Display *		display
 	char *			name
-	int *			major_opcode_return
-	int *			first_event_return
-	int *			first_error_return
+	int  			&major_opcode_return
+	int  			&first_event_return
+	int  			&first_error_return
+	OUTPUT:
+	    RETVAL
+	    major_opcode_return
+	    first_event_return
+	    first_error_return
 
 XFontStruct *
 XQueryFont(display, font_ID)
@@ -1593,13 +1744,22 @@ int
 XQueryPointer(display, w, root_return, child_return, root_x_return, root_y_return, win_x_return, win_y_return, mask_return)
 	Display *		display
 	Window			w
-	Window *		root_return
-	Window *		child_return
-	int *			root_x_return
-	int *			root_y_return
-	int *			win_x_return
-	int *			win_y_return
-	unsigned int *		mask_return
+	Window  		&root_return
+	Window  		&child_return
+	int  			&root_x_return
+	int  			&root_y_return
+	int  			&win_x_return
+	int  			&win_y_return
+	unsigned int  		&mask_return
+	OUTPUT:
+	    RETVAL
+	    root_return
+	    child_return
+	    root_x_return
+	    root_y_return
+	    win_x_return
+	    win_y_return
+	    mask_return
 
 int
 XQueryTextExtents(display, font_ID, string, nchars, direction_return, font_ascent_return, font_descent_return, overall_return)
@@ -1607,10 +1767,15 @@ XQueryTextExtents(display, font_ID, string, nchars, direction_return, font_ascen
 	XID			font_ID
 	char *			string
 	int			nchars
-	int *			direction_return
-	int *			font_ascent_return
-	int *			font_descent_return
+	int  			&direction_return
+	int  			&font_ascent_return
+	int  			&font_descent_return
 	XCharStruct *		overall_return
+	OUTPUT:
+	    RETVAL
+	    direction_return
+	    font_ascent_return
+	    font_descent_return
 
 int
 XQueryTextExtents16(display, font_ID, string, nchars, direction_return, font_ascent_return, font_descent_return, overall_return)
@@ -1618,21 +1783,31 @@ XQueryTextExtents16(display, font_ID, string, nchars, direction_return, font_asc
 	XID			font_ID
 	XChar2b *		string
 	int			nchars
-	int *			direction_return
-	int *			font_ascent_return
-	int *			font_descent_return
+	int  			&direction_return
+	int  			&font_ascent_return
+	int  			&font_descent_return
 	XCharStruct *		overall_return
+	OUTPUT:
+	    RETVAL
+	    direction_return
+	    font_ascent_return
+	    font_descent_return
 
 int
 XQueryTree(display, w, root_return, parent_return, children_return, nchildren_return)
 	Display *		display
 	Window			w
-	Window *		root_return
-	Window *		parent_return
+	Window  		&root_return
+	Window  		&parent_return
 	Window **		children_return
-	unsigned int *		nchildren_return
+	unsigned int  		&nchildren_return
+	OUTPUT:
+	    RETVAL
+	    root_return
+	    parent_return
+	    nchildren_return
 
-int
+void
 XRaiseWindow(display, w)
 	Display *		display
 	Window			w
@@ -1642,11 +1817,18 @@ XReadBitmapFile(display, d, filename, width_return, height_return, bitmap_return
 	Display *		display
 	Drawable		d
 	char *			filename
-	unsigned int *		width_return
-	unsigned int *		height_return
-	Pixmap *		bitmap_return
-	int *			x_hot_return
-	int *			y_hot_return
+	unsigned int  		&width_return
+	unsigned int  		&height_return
+	Pixmap  		&bitmap_return
+	int  			&x_hot_return
+	int  			&y_hot_return
+	OUTPUT:
+	    RETVAL
+	    width_return
+	    height_return
+	    bitmap_return
+	    x_hot_return
+	    y_hot_return
 
 int
 XRebindKeysym(display, keysym, list, mod_count, string, bytes_string)
@@ -1657,7 +1839,7 @@ XRebindKeysym(display, keysym, list, mod_count, string, bytes_string)
 	unsigned char *		string
 	int			bytes_string
 
-int
+void
 XRecolorCursor(display, cursor, foreground_color, background_color)
 	Display *		display
 	Cursor			cursor
@@ -1684,23 +1866,23 @@ int
 XRefreshKeyboardMapping(event_map)
 	XMappingEvent *		event_map
 
-int
+void
 XRemoveFromSaveSet(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XRemoveHost(display, host)
 	Display *		display
 	XHostAddress *		host
 
-int
+void
 XRemoveHosts(display, hosts, num_hosts)
 	Display *		display
 	XHostAddress *		hosts
 	int			num_hosts
 
-int
+void
 XReparentWindow(display, w, parent, x, y)
 	Display *		display
 	Window			w
@@ -1708,11 +1890,11 @@ XReparentWindow(display, w, parent, x, y)
 	int			x
 	int			y
 
-int
+void
 XResetScreenSaver(display)
 	Display *		display
 
-int
+void
 XResizeWindow(display, w, width, height)
 	Display *		display
 	Window			w
@@ -1723,7 +1905,7 @@ char *
 XResourceManagerString(display)
 	Display *		display
 
-int
+void
 XRestackWindows(display, windows, nwindows)
 	Display *		display
 	Window *		windows
@@ -1738,12 +1920,12 @@ Window
 XRootWindowOfScreen(screen)
 	Screen *		screen
 
-int
+void
 XRotateBuffers(display, rotate)
 	Display *		display
 	int			rotate
 
-int
+void
 XRotateWindowProperties(display, w, properties, num_prop, npositions)
 	Display *		display
 	Window			w
@@ -1775,7 +1957,7 @@ char *
 XScreenResourceString(screen)
 	Screen *		screen
 
-int
+void
 XSelectInput(display, w, event_mask)
 	Display *		display
 	Window			w
@@ -1793,18 +1975,18 @@ char *
 XServerVendor(display)
 	Display *		display
 
-int
+void
 XSetAccessControl(display, mode)
 	Display *		display
 	int			mode
 
-int
+void
 XSetArcMode(display, gc, arc_mode)
 	Display *		display
 	GC			gc
 	int			arc_mode
 
-int
+void
 XSetBackground(display, gc, background)
 	Display *		display
 	GC			gc
@@ -1816,20 +1998,20 @@ XSetClassHint(display, w, class_hints)
 	Window			w
 	XClassHint *		class_hints
 
-int
+void
 XSetClipMask(display, gc, pixmap)
 	Display *		display
 	GC			gc
 	Pixmap			pixmap
 
-int
+void
 XSetClipOrigin(display, gc, clip_x_origin, clip_y_origin)
 	Display *		display
 	GC			gc
 	int			clip_x_origin
 	int			clip_y_origin
 
-int
+void
 XSetClipRectangles(display, gc, clip_x_origin, clip_y_origin, rectangles, n, ordering)
 	Display *		display
 	GC			gc
@@ -1839,19 +2021,19 @@ XSetClipRectangles(display, gc, clip_x_origin, clip_y_origin, rectangles, n, ord
 	int			n
 	int			ordering
 
-int
+void
 XSetCloseDownMode(display, close_mode)
 	Display *		display
 	int			close_mode
 
-int
+void
 XSetCommand(display, w, argv, argc)
 	Display *		display
 	Window			w
 	char **			argv
 	int			argc
 
-int
+void
 XSetDashes(display, gc, dash_offset, dash_list, n)
 	Display *		display
 	GC			gc
@@ -1859,49 +2041,49 @@ XSetDashes(display, gc, dash_offset, dash_list, n)
 	char *			dash_list
 	int			n
 
-int
+void
 XSetFillRule(display, gc, fill_rule)
 	Display *		display
 	GC			gc
 	int			fill_rule
 
-int
+void
 XSetFillStyle(display, gc, fill_style)
 	Display *		display
 	GC			gc
 	int			fill_style
 
-int
+void
 XSetFont(display, gc, font)
 	Display *		display
 	GC			gc
 	Font			font
 
-int
+void
 XSetFontPath(display, directories, ndirs)
 	Display *		display
 	char **			directories
 	int			ndirs
 
-int
+void
 XSetForeground(display, gc, foreground)
 	Display *		display
 	GC			gc
 	unsigned long		foreground
 
-int
+void
 XSetFunction(display, gc, function)
 	Display *		display
 	GC			gc
 	int			function
 
-int
+void
 XSetGraphicsExposures(display, gc, graphics_exposures)
 	Display *		display
 	GC			gc
 	int			graphics_exposures
 
-int
+void
 XSetIconName(display, w, icon_name)
 	Display *		display
 	Window			w
@@ -1914,14 +2096,14 @@ XSetIconSizes(display, w, size_list, count)
 	XIconSize *		size_list
 	int			count
 
-int
+void
 XSetInputFocus(display, focus, revert_to, time)
 	Display *		display
 	Window			focus
 	int			revert_to
 	Time			time
 
-int
+void
 XSetLineAttributes(display, gc, line_width, line_style, cap_style, join_style)
 	Display *		display
 	GC			gc
@@ -1941,7 +2123,7 @@ XSetNormalHints(display, w, hints)
 	Window			w
 	XSizeHints *		hints
 
-int
+void
 XSetPlaneMask(display, gc, plane_mask)
 	Display *		display
 	GC			gc
@@ -1961,13 +2143,13 @@ XSetRGBColormaps(display, w, stdcmaps, count, property)
 	int			count
 	Atom			property
 
-int
+void
 XSetRegion(display, gc, r)
 	Display *		display
 	GC			gc
 	Region			r
 
-int
+void
 XSetScreenSaver(display, timeout, interval, prefer_blanking, allow_exposures)
 	Display *		display
 	int			timeout
@@ -1975,7 +2157,7 @@ XSetScreenSaver(display, timeout, interval, prefer_blanking, allow_exposures)
 	int			prefer_blanking
 	int			allow_exposures
 
-int
+void
 XSetSelectionOwner(display, selection, owner, time)
 	Display *		display
 	Atom			selection
@@ -2007,7 +2189,7 @@ XSetStandardProperties(display, w, window_name, icon_name, icon_pixmap, argv, ar
 	int			argc
 	XSizeHints *		hints
 
-int
+void
 XSetState(display, gc, foreground, background, function, plane_mask)
 	Display *		display
 	GC			gc
@@ -2016,19 +2198,19 @@ XSetState(display, gc, foreground, background, function, plane_mask)
 	int			function
 	unsigned long		plane_mask
 
-int
+void
 XSetStipple(display, gc, stipple)
 	Display *		display
 	GC			gc
 	Pixmap			stipple
 
-int
+void
 XSetSubwindowMode(display, gc, subwindow_mode)
 	Display *		display
 	GC			gc
 	int			subwindow_mode
 
-int
+void
 XSetTSOrigin(display, gc, ts_x_origin, ts_y_origin)
 	Display *		display
 	GC			gc
@@ -2042,13 +2224,13 @@ XSetTextProperty(display, w, text_prop, property)
 	XTextProperty *		text_prop
 	Atom			property
 
-int
+void
 XSetTile(display, gc, tile)
 	Display *		display
 	GC			gc
 	Pixmap			tile
 
-int
+void
 XSetTransientForHint(display, w, prop_window)
 	Display *		display
 	Window			w
@@ -2117,37 +2299,37 @@ XSetWMSizeHints(display, w, hints, property)
 	XSizeHints *		hints
 	Atom			property
 
-int
+void
 XSetWindowBackground(display, w, background_pixel)
 	Display *		display
 	Window			w
 	unsigned long		background_pixel
 
-int
+void
 XSetWindowBackgroundPixmap(display, w, background_pixmap)
 	Display *		display
 	Window			w
 	Pixmap			background_pixmap
 
-int
+void
 XSetWindowBorder(display, w, border_pixel)
 	Display *		display
 	Window			w
 	unsigned long		border_pixel
 
-int
+void
 XSetWindowBorderPixmap(display, w, border_pixmap)
 	Display *		display
 	Window			w
 	Pixmap			border_pixmap
 
-int
+void
 XSetWindowBorderWidth(display, w, width)
 	Display *		display
 	Window			w
 	unsigned int		width
 
-int
+void
 XSetWindowColormap(display, w, colormap)
 	Display *		display
 	Window			w
@@ -2172,26 +2354,26 @@ XStoreBuffer(display, bytes, nbytes, buffer)
 	int			nbytes
 	int			buffer
 
-int
+void
 XStoreBytes(display, bytes, nbytes)
 	Display *		display
 	char *			bytes
 	int			nbytes
 
-int
+void
 XStoreColor(display, colormap, color)
 	Display *		display
 	Colormap		colormap
 	XColor *		color
 
-int
+void
 XStoreColors(display, colormap, color, ncolors)
 	Display *		display
 	Colormap		colormap
 	XColor *		color
 	int			ncolors
 
-int
+void
 XStoreName(display, w, window_name)
 	Display *		display
 	Window			w
@@ -2221,7 +2403,7 @@ XSubtractRegion(sra, srb, dr_return)
 	Region			srb
 	Region			dr_return
 
-int
+void
 XSync(display, discard)
 	Display *		display
 	int			discard
@@ -2231,26 +2413,39 @@ XTextExtents(font_struct, string, nchars, direction_return, font_ascent_return, 
 	XFontStruct *		font_struct
 	char *			string
 	int			nchars
-	int *			direction_return
-	int *			font_ascent_return
-	int *			font_descent_return
+	int  			&direction_return
+	int  			&font_ascent_return
+	int  			&font_descent_return
 	XCharStruct *		overall_return
+	OUTPUT:
+	    RETVAL
+	    direction_return
+	    font_ascent_return
+	    font_descent_return
 
 int
 XTextExtents16(font_struct, string, nchars, direction_return, font_ascent_return, font_descent_return, overall_return)
 	XFontStruct *		font_struct
 	XChar2b *		string
 	int			nchars
-	int *			direction_return
-	int *			font_ascent_return
-	int *			font_descent_return
+	int  			&direction_return
+	int  			&font_ascent_return
+	int  			&font_descent_return
 	XCharStruct *		overall_return
+	OUTPUT:
+	    RETVAL
+	    direction_return
+	    font_ascent_return
+	    font_descent_return
 
 int
 XTextPropertyToStringList(text_prop, list_return, count_return)
 	XTextProperty *		text_prop
 	char ***		list_return
-	int *			count_return
+	int  			&count_return
+	OUTPUT:
+	    RETVAL
+	    count_return
 
 int
 XTextWidth(font_struct, string, count)
@@ -2271,44 +2466,49 @@ XTranslateCoordinates(display, src_w, dest_w, src_x, src_y, dest_x_return, dest_
 	Window			dest_w
 	int			src_x
 	int			src_y
-	int *			dest_x_return
-	int *			dest_y_return
-	Window *		child_return
+	int  			&dest_x_return
+	int  			&dest_y_return
+	Window  		&child_return
+	OUTPUT:
+	    RETVAL
+	    dest_x_return
+	    dest_y_return
+	    child_return
 
-int
+void
 XUndefineCursor(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XUngrabButton(display, button, modifiers, grab_window)
 	Display *		display
 	unsigned int		button
 	unsigned int		modifiers
 	Window			grab_window
 
-int
+void
 XUngrabKey(display, keycode, modifiers, grab_window)
 	Display *		display
 	int			keycode
 	unsigned int		modifiers
 	Window			grab_window
 
-int
+void
 XUngrabKeyboard(display, time)
 	Display *		display
 	Time			time
 
-int
+void
 XUngrabPointer(display, time)
 	Display *		display
 	Time			time
 
-int
+void
 XUngrabServer(display)
 	Display *		display
 
-int
+void
 XUninstallColormap(display, colormap)
 	Display *		display
 	Colormap		colormap
@@ -2325,17 +2525,21 @@ XUnionRegion(sra, srb, dr_return)
 	Region			srb
 	Region			dr_return
 
-int
+void
 XUnloadFont(display, font)
 	Display *		display
 	Font			font
 
-int
+void
+XUnlockDisplay(display)
+	Display *		display
+
+void
 XUnmapSubwindows(display, w)
 	Display *		display
 	Window			w
 
-int
+void
 XUnmapWindow(display, w)
 	Display *		display
 	Window			w
@@ -2356,13 +2560,20 @@ XWMGeometry(display, screen_number, user_geometry, default_geometry, border_widt
 	char *			default_geometry
 	unsigned int		border_width
 	XSizeHints *		hints
-	int *			x_return
-	int *			y_return
-	int *			width_return
-	int *			height_return
-	int *			gravity_return
+	int  			&x_return
+	int  			&y_return
+	int  			&width_return
+	int  			&height_return
+	int  			&gravity_return
+	OUTPUT:
+	    RETVAL
+	    x_return
+	    y_return
+	    width_return
+	    height_return
+	    gravity_return
 
-int
+void
 XWarpPointer(display, src_w, dest_w, src_x, src_y, src_width, src_height, dest_x, dest_y)
 	Display *		display
 	Window			src_w
@@ -2423,14 +2634,19 @@ XXorRegion(sra, srb, dr_return)
 void
 XrmCombineDatabase(source_db, target_db, override)
 	XrmDatabase		source_db
-	XrmDatabase *		target_db
+	XrmDatabase  		&target_db
 	int			override
+	OUTPUT:
+	    target_db
 
 int
 XrmCombineFileDatabase(filename, target, override)
 	char *			filename
-	XrmDatabase *		target
+	XrmDatabase  		&target
 	int			override
+	OUTPUT:
+	    RETVAL
+	    target
 
 void
 XrmDestroyDatabase(database)
@@ -2467,16 +2683,20 @@ XrmLocaleOfDatabase(database)
 void
 XrmMergeDatabases(source_db, target_db)
 	XrmDatabase		source_db
-	XrmDatabase *		target_db
+	XrmDatabase  		&target_db
+	OUTPUT:
+	    target_db
 
 void
 XrmParseCommand(database, table, table_count, name, argc_in_out, argv_in_out)
-	XrmDatabase *		database
+	XrmDatabase  		&database
 	XrmOptionDescList	table
 	int			table_count
 	char *			name
 	int *			argc_in_out
 	char **			argv_in_out
+	OUTPUT:
+	    database
 
 XrmQuark
 XrmPermStringToQuark(string)
@@ -2489,21 +2709,27 @@ XrmPutFileDatabase(database, filename)
 
 void
 XrmPutLineResource(database, line)
-	XrmDatabase *		database
+	XrmDatabase  		&database
 	char *			line
+	OUTPUT:
+	    database
 
 void
 XrmPutResource(database, specifier, type, value)
-	XrmDatabase *		database
+	XrmDatabase  		&database
 	char *			specifier
 	char *			type
 	XrmValue *		value
+	OUTPUT:
+	    database
 
 void
 XrmPutStringResource(database, specifier, value)
-	XrmDatabase *		database
+	XrmDatabase  		&database
 	char *			specifier
 	char *			value
+	OUTPUT:
+	    database
 
 int
 XrmQGetResource(database, quark_name, quark_class, quark_type_return, value_return)
@@ -2515,18 +2741,22 @@ XrmQGetResource(database, quark_name, quark_class, quark_type_return, value_retu
 
 void
 XrmQPutResource(database, bindings, quarks, type, value)
-	XrmDatabase *		database
+	XrmDatabase  		&database
 	XrmBindingList		bindings
 	XrmQuarkList		quarks
 	XrmRepresentation	type
 	XrmValue *		value
+	OUTPUT:
+	    database
 
 void
 XrmQPutStringResource(database, bindings, quarks, value)
-	XrmDatabase *		database
+	XrmDatabase  		&database
 	XrmBindingList		bindings
 	XrmQuarkList		quarks
 	char *			value
+	OUTPUT:
+	    database
 
 XrmString
 XrmQuarkToString(quark)

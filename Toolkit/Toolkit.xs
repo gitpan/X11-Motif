@@ -5,15 +5,17 @@
 
 #include "toolkit-api.h"
 
+#undef DEBUG_XT_ARG_LISTS
+
 Widget UxTopLevel = 0;
 XtAppContext UxAppContext = 0;
-
 
 /* BUGS in the resource system:
 
    4. Don't know if returned resource values are shared or private.  If they
       are private they must be destroyed during garbage collection, otherwise
-      they shouldn't -- the widget will do it.
+      they shouldn't -- the widget will do it.  The default should be documented
+      and the widget registry should be able to over-ride the default.
 
 */
 
@@ -22,7 +24,7 @@ XtAppContext UxAppContext = 0;
    The best we can do is provide the parent widget.  In practice, this works
    very well because the widget is only used when a context for acquiring
    server resources is needed.  The widget is also used for garbage collecting
-   resources -- how does that interact with always using the parent widget??? */
+   resources -- how does that interact with always using the parent widget? */
 
 int xt_convert_InArg(Widget w, WidgetClass wc, XtInArg in, XtArgVal *out)
 {
@@ -104,27 +106,103 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 		XtArgVal value;
 
 		if (sv_derived_from(sp[i], "X::Toolkit::InArg")) {
+		    /* Use the type information contained in InArg to convert
+		       a character string to the right data type using the Xt
+		       resource converters. */
+
 		    if (xt_convert_InArg(w, wc, (XtInArg)SvIV(obj), &value)) {
 #ifdef DEBUG_XT_ARG_LISTS
-			printf("#1: arg[%d] = <'%s', 0x%08x>\n", arg_count, name, value);
+			printf("#1.1: arg[%d] = <'%s', 0x%08x>\n", arg_count, name, value);
 #endif
 			XtSetArg(arg_list[arg_count], name, value); ++arg_count;
 		    }
+		    else {
+			/* If the Xt resource conversion failed, we don't know
+			   how to handle the resource so it is just silently
+			   ignored. */
+
+#ifdef DEBUG_XT_ARG_LISTS
+			printf("#1.2: arg[%d] = <'%s', IGNORING!>\n", arg_count, name);
+#endif
+		    }
 		}
 		else {
-		    value = (XtArgVal)SvIV(obj);
+		    /* If the value is a reference (we assume some type of X
+		       object), then it is just passed in as given.  No
+		       conversion is attempted and no type checking is
+		       performed.  This is dangerous and could lead to crashes
+		       in the toolkit library, but we don't have enough
+		       information to quickly perform a type check at this
+		       point in time.  Not checking the value type has the
+		       advantage of allowing us to easily handle "opaque" data
+		       types which Perl doesn't fully know about.
+
+		       One check is made for "shared" perl values.  These are
+		       plain SV pointers (or boxed unsigned integers) that get
+		       stashed in a widget.  Special care must be taken to
+		       increment the ref count and schedule a destroy CB to
+		       decrement it later.
+
+		       The boxed integers significantly improve performance
+		       and memory usage because the values are stashed
+		       directly in the widget and will allow the SV to be
+		       garbage collected. */
+
+		    char *obj_type = sv_reftype(obj, TRUE);
+		    if (obj_type && strEQ(obj_type, "X::shared_perl_value")) {
+			SV *sv = (SV *)SvIV(obj);
+			if ((int)sv & 1) {
+			    value = (XtArgVal)sv;
 #ifdef DEBUG_XT_ARG_LISTS
-		    printf("#2: arg[%d] = <'%s', 0x%08x>\n", arg_count, name, value);
+			    printf("#2.1: arg[%d] = <'%s', 0x%08x [BOXED]>\n", arg_count, name, value);
 #endif
+			}
+			else {
+			    value = (XtArgVal)SvREFCNT_inc(sv);
+#ifdef DEBUG_XT_ARG_LISTS
+			    printf("#2.2: arg[%d] = <'%s', 0x%08x [SV *]>\n", arg_count, name, value);
+#endif
+
+			    /* FIXME -- DESTROY CB MUST BE SCHEDULED!  This is
+			       a bit tricky because we don't have a reference
+			       to the widget that the resource is going to be
+			       set on yet.  Some sort of queued callback must be
+			       created. */
+			}
+		    }
+		    else {
+			value = (XtArgVal)SvIV(obj);
+#ifdef DEBUG_XT_ARG_LISTS
+			printf("#2.3: arg[%d] = <'%s', 0x%08x>\n", arg_count, name, value);
+#endif
+		    }
+
 		    XtSetArg(arg_list[arg_count], name, value); ++arg_count;
 		}
 	    }
-	    else if (SvIOK(sp[i])) {
+	    else if (SvIOK(sp[i]) || SvNOK(sp[i])) {
+		/* If the value isn't a reference, we check to see if it is a
+		   simple numeric value -- usually an enumeration or a screen
+		   coordinate.  We have to check both IOK and NOK because it
+		   is difficult to predict what Perl will use to store a
+		   computation. */
+
 		long value = SvIV(sp[i]);
+
 #ifdef DEBUG_XT_ARG_LISTS
 		printf("#3: arg[%d] = <'%s', 0x%08x>\n", arg_count, name, value);
 #endif
 		XtSetArg(arg_list[arg_count], name, value); ++arg_count;
+	    }
+	    else {
+		/* If anything else was given as a resource value, it has to
+		   be ignored because there isn't enough information to know
+		   what to do with it.  Other parts of the Toolkit module
+		   should ensure that this never happens. */
+
+#ifdef DEBUG_XT_ARG_LISTS
+		printf("#4: arg[%d] = <'%s', IGNORING!>\n", arg_count, name);
+#endif
 	    }
 
 	    ++i;
@@ -481,7 +559,7 @@ new(src, res_type_sv, res_size, just_use_SvPV)
 void
 DESTROY(self)
 	XtInArg		self
-	CODE:
+	PPCODE:
 	    if (self->src) {
 		SvREFCNT_dec(self->src);
 		self->src = 0;
@@ -523,7 +601,7 @@ new(res_name, res_class, res_type, res_size, hints)
 void
 DESTROY(self)
 	XtOutArg	self
-	CODE:
+	PPCODE:
 	    if (self->res_name) {
 		SvREFCNT_dec(self->res_name);
 		SvREFCNT_dec(self->res_class);
@@ -543,7 +621,7 @@ long
 ID(self)
 	Widget		self
 	CODE:
-	    RETVAL = ((unsigned long)self) >> 2;
+	    RETVAL = (unsigned long)self >> 2;
 	OUTPUT:
 	    RETVAL
 
@@ -727,15 +805,13 @@ priv_XtGetValues(self, ...)
 		free(arg_info_list);
 	    }
 
-int
+void
 XtMapWidget(widget)
 	Widget		widget
 
-int
+void
 XtUnmapWidget(widget)
 	Widget		widget
-
-
 
 
 		 
@@ -768,7 +844,6 @@ priv_XtAppCreateShell(application_name, application_class, widget_class, display
 	OUTPUT:
 	    RETVAL
 
-
 Boolean
 XtCallConverter(dpy, converter, args, num_args, from, to_in_out, cache_ref_return)
 	Display *		dpy
@@ -778,11 +853,6 @@ XtCallConverter(dpy, converter, args, num_args, from, to_in_out, cache_ref_retur
 	XrmValuePtr		from
 	XrmValue *		to_in_out
 	XtCacheRef *		cache_ref_return
-
-char *
-XtCalloc(num, size)
-	Cardinal		num
-	Cardinal		size
 
 void
 XtCloseDisplay(dpy)
@@ -814,7 +884,6 @@ priv_XtCreateManagedWidget(name, widget_class, parent, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XtCreatePopupShell(name, widgetClass, parent, ...)
 	char *			name
@@ -830,7 +899,6 @@ priv_XtCreatePopupShell(name, widgetClass, parent, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XtCreateWidget(name, widget_class, parent, ...)
 	char *			name
@@ -845,7 +913,6 @@ priv_XtCreateWidget(name, widget_class, parent, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 XrmDatabase
 XtDatabase(dpy)
@@ -881,7 +948,10 @@ KeySym *
 XtGetKeysymTable(dpy, min_keycode_return, keysyms_per_keycode_return)
 	Display *		dpy
 	KeyCode *		min_keycode_return
-	int *			keysyms_per_keycode_return
+	int  			&keysyms_per_keycode_return
+	OUTPUT:
+	    RETVAL
+	    keysyms_per_keycode_return
 
 int
 XtGetMultiClickTime(dpy)
@@ -1010,201 +1080,6 @@ Widget
 XtWindowToWidget(display, window)
 	Display *		display
 	Window			window
-
-MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Context
-
-XtActionHookId
-XtAppAddActionHook(app_context, proc, client_data)
-	XtAppContext		app_context
-	XtActionHookProc	proc
-	XtPointer		client_data
-
-void
-XtAppAddActions(app_context, actions, num_actions)
-	XtAppContext		app_context
-	XtActionList		actions
-	Cardinal		num_actions
-
-XtInputId
-XtAppAddInput(app_context, source, condition, proc, closure)
-	XtAppContext		app_context
-	int			source
-	XtPointer		condition
-	XtInputCallbackProc	proc
-	XtPointer		closure
-
-XtIntervalId
-XtAppAddTimeOut(app_context, interval, proc, closure)
-	XtAppContext		app_context
-	unsigned long		interval
-	XtTimerCallbackProc	proc
-	XtPointer		closure
-
-XtWorkProcId
-XtAppAddWorkProc(app_context, proc, closure)
-	XtAppContext		app_context
-	XtWorkProc		proc
-	XtPointer		closure
-
-void
-XtAppError(app_context, message)
-	XtAppContext		app_context
-	char *			message
-
-void
-XtAppErrorMsg(app_context, name, type, class, def, params, num_params)
-	XtAppContext		app_context
-	char *			name
-	char *			type
-	char *			class
-	char *			def
-	String *		params
-	Cardinal *		num_params
-
-XrmDatabase *
-XtAppGetErrorDatabase(app_context)
-	XtAppContext		app_context
-
-void
-XtAppGetErrorDatabaseText(app_context, name, type, class, def, buffer_return, nbytes, database)
-	XtAppContext		app_context
-	char *			name
-	char *			type
-	char *			class
-	char *			def
-	String			buffer_return
-	int			nbytes
-	XrmDatabase		database
-
-unsigned long
-XtAppGetSelectionTimeout(app_context)
-	XtAppContext		app_context
-
-Widget
-priv_XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, ...)
-	XtAppContext *		app_context_return
-	char *			application_class
-	XrmOptionDescList	options
-	Cardinal		num_options
-	int *			argc_in_out
-	String *		argv_in_out
-	String *		fallback_resources
-	PREINIT:
-	    ArgList arg_list = 0;
-	    Cardinal arg_list_len = 0;
-	CODE:
-	    arg_list_len = xt_build_input_arg_list(0, 0, &arg_list, &ST(7), items - 7);
-	    RETVAL = XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, arg_list, arg_list_len);
-	    if (arg_list) free(arg_list);
-	OUTPUT:
-	    RETVAL
-
-
-void
-XtAppMainLoop(app_context)
-	XtAppContext		app_context
-
-XtInputMask
-XtAppPending(app_context)
-	XtAppContext		app_context
-
-void
-XtAppProcessEvent(app_context, mask)
-	XtAppContext		app_context
-	XtInputMask		mask
-
-void
-XtAppReleaseCacheRefs(app_context, cache_ref)
-	XtAppContext		app_context
-	XtCacheRef *		cache_ref
-
-XtErrorHandler
-XtAppSetErrorHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorHandler		handler
-
-XtErrorMsgHandler
-XtAppSetErrorMsgHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorMsgHandler	handler
-
-void
-XtAppSetFallbackResources(app_context, specification_list)
-	XtAppContext		app_context
-	String *		specification_list
-
-void
-XtAppSetSelectionTimeout(app_context, timeout)
-	XtAppContext		app_context
-	unsigned long		timeout
-
-void
-XtAppSetTypeConverter(app_context, from_type, to_type, converter, convert_args, num_args, cache_type, destructor)
-	XtAppContext		app_context
-	char *			from_type
-	char *			to_type
-	XtTypeConverter		converter
-	XtConvertArgList	convert_args
-	Cardinal		num_args
-	XtCacheType		cache_type
-	XtDestructor		destructor
-
-XtErrorHandler
-XtAppSetWarningHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorHandler		handler
-
-XtErrorMsgHandler
-XtAppSetWarningMsgHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorMsgHandler	handler
-
-void
-XtAppWarning(app_context, message)
-	XtAppContext		app_context
-	char *			message
-
-void
-XtAppWarningMsg(app_context, name, type, class, def, params, num_params)
-	XtAppContext		app_context
-	char *			name
-	char *			type
-	char *			class
-	char *			def
-	String *		params
-	Cardinal *		num_params
-
-void
-XtDestroyApplicationContext(app_context)
-	XtAppContext		app_context
-
-void
-XtDisplayInitialize(app_context, dpy, application_name, application_class, options, num_options, argc, argv)
-	XtAppContext		app_context
-	Display *		dpy
-	char *			application_name
-	char *			application_class
-	XrmOptionDescRec *	options
-	Cardinal		num_options
-	int *			argc
-	char **			argv
-
-Display *
-XtOpenDisplay(app_context, display_string, application_name, application_class, options, num_options, argc, argv)
-	XtAppContext		app_context
-	char *			display_string
-	char *			application_name
-	char *			application_class
-	XrmOptionDescRec *	options
-	Cardinal		num_options
-	int *			argc
-	char **			argv
-
-XtLanguageProc
-XtSetLanguageProc(app_context, proc, client_data)
-	XtAppContext		app_context
-	XtLanguageProc		proc
-	XtPointer		client_data
 
 MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Widget
 
@@ -1676,8 +1551,6 @@ priv_XtSetValues(widget, ...)
 	    XtSetValues(widget, arg_list, arg_list_len);
 	    if (arg_list) free(arg_list);
 
-
-
 void
 XtSetWMColormapWindows(widget, list, count)
 	Widget			widget
@@ -1738,6 +1611,200 @@ Window
 XtWindowOfObject(object)
 	Widget			object
 
+MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Context
+
+XtActionHookId
+XtAppAddActionHook(app_context, proc, client_data)
+	XtAppContext		app_context
+	XtActionHookProc	proc
+	XtPointer		client_data
+
+void
+XtAppAddActions(app_context, actions, num_actions)
+	XtAppContext		app_context
+	XtActionList		actions
+	Cardinal		num_actions
+
+XtInputId
+XtAppAddInput(app_context, source, condition, proc, closure)
+	XtAppContext		app_context
+	int			source
+	XtPointer		condition
+	XtInputCallbackProc	proc
+	XtPointer		closure
+
+XtIntervalId
+XtAppAddTimeOut(app_context, interval, proc, closure)
+	XtAppContext		app_context
+	unsigned long		interval
+	XtTimerCallbackProc	proc
+	XtPointer		closure
+
+XtWorkProcId
+XtAppAddWorkProc(app_context, proc, closure)
+	XtAppContext		app_context
+	XtWorkProc		proc
+	XtPointer		closure
+
+void
+XtAppError(app_context, message)
+	XtAppContext		app_context
+	char *			message
+
+void
+XtAppErrorMsg(app_context, name, type, class, def, params, num_params)
+	XtAppContext		app_context
+	char *			name
+	char *			type
+	char *			class
+	char *			def
+	String *		params
+	Cardinal *		num_params
+
+XrmDatabase *
+XtAppGetErrorDatabase(app_context)
+	XtAppContext		app_context
+
+void
+XtAppGetErrorDatabaseText(app_context, name, type, class, def, buffer_return, nbytes, database)
+	XtAppContext		app_context
+	char *			name
+	char *			type
+	char *			class
+	char *			def
+	String			buffer_return
+	int			nbytes
+	XrmDatabase		database
+
+unsigned long
+XtAppGetSelectionTimeout(app_context)
+	XtAppContext		app_context
+
+Widget
+priv_XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, ...)
+	XtAppContext *		app_context_return
+	char *			application_class
+	XrmOptionDescList	options
+	Cardinal		num_options
+	int *			argc_in_out
+	String *		argv_in_out
+	String *		fallback_resources
+	PREINIT:
+	    ArgList arg_list = 0;
+	    Cardinal arg_list_len = 0;
+	CODE:
+	    arg_list_len = xt_build_input_arg_list(0, 0, &arg_list, &ST(7), items - 7);
+	    RETVAL = XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, arg_list, arg_list_len);
+	    if (arg_list) free(arg_list);
+	OUTPUT:
+	    RETVAL
+
+void
+XtAppMainLoop(app_context)
+	XtAppContext		app_context
+
+XtInputMask
+XtAppPending(app_context)
+	XtAppContext		app_context
+
+void
+XtAppProcessEvent(app_context, mask)
+	XtAppContext		app_context
+	XtInputMask		mask
+
+void
+XtAppReleaseCacheRefs(app_context, cache_ref)
+	XtAppContext		app_context
+	XtCacheRef *		cache_ref
+
+XtErrorHandler
+XtAppSetErrorHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorHandler		handler
+
+XtErrorMsgHandler
+XtAppSetErrorMsgHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorMsgHandler	handler
+
+void
+XtAppSetFallbackResources(app_context, specification_list)
+	XtAppContext		app_context
+	String *		specification_list
+
+void
+XtAppSetSelectionTimeout(app_context, timeout)
+	XtAppContext		app_context
+	unsigned long		timeout
+
+void
+XtAppSetTypeConverter(app_context, from_type, to_type, converter, convert_args, num_args, cache_type, destructor)
+	XtAppContext		app_context
+	char *			from_type
+	char *			to_type
+	XtTypeConverter		converter
+	XtConvertArgList	convert_args
+	Cardinal		num_args
+	XtCacheType		cache_type
+	XtDestructor		destructor
+
+XtErrorHandler
+XtAppSetWarningHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorHandler		handler
+
+XtErrorMsgHandler
+XtAppSetWarningMsgHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorMsgHandler	handler
+
+void
+XtAppWarning(app_context, message)
+	XtAppContext		app_context
+	char *			message
+
+void
+XtAppWarningMsg(app_context, name, type, class, def, params, num_params)
+	XtAppContext		app_context
+	char *			name
+	char *			type
+	char *			class
+	char *			def
+	String *		params
+	Cardinal *		num_params
+
+void
+XtDestroyApplicationContext(app_context)
+	XtAppContext		app_context
+
+void
+XtDisplayInitialize(app_context, dpy, application_name, application_class, options, num_options, argc, argv)
+	XtAppContext		app_context
+	Display *		dpy
+	char *			application_name
+	char *			application_class
+	XrmOptionDescRec *	options
+	Cardinal		num_options
+	int *			argc
+	char **			argv
+
+Display *
+XtOpenDisplay(app_context, display_string, application_name, application_class, options, num_options, argc, argv)
+	XtAppContext		app_context
+	char *			display_string
+	char *			application_name
+	char *			application_class
+	XrmOptionDescRec *	options
+	Cardinal		num_options
+	int *			argc
+	char **			argv
+
+XtLanguageProc
+XtSetLanguageProc(app_context, proc, client_data)
+	XtAppContext		app_context
+	XtLanguageProc		proc
+	XtPointer		client_data
+
 # -- END list-raw-funs OUTPUT --
 
 
@@ -1778,14 +1845,26 @@ resources(widget_class)
 	PPCODE:
 	    while (widget_class) {
 		num = widget_class->core_class.num_resources;
-		EXTEND(sp, num * 3);
+		EXTEND(sp, num * 4);
 		if (!widget_class->core_class.class_inited) {
 		    XtResourceList list = widget_class->core_class.resources;
 		    for (i = 0; i < num; ++i) {
-			PUSHs(sv_2mortal(newSVpv(list[i].resource_name, 0)));
-			PUSHs(sv_2mortal(newSVpv(list[i].resource_class, 0)));
-			PUSHs(sv_2mortal(newSVpv(list[i].resource_type, 0)));
-			PUSHs(sv_2mortal(newSViv(list[i].resource_size)));
+#ifdef HAS_FAST_QUARKS
+			char *resource_name = (char *)_XQstring(list[i].resource_name);
+			char *resource_class = (char *)_XQstring(list[i].resource_class);
+			char *resource_type = (char *)_XQstring(list[i].resource_type);
+#else
+			char *resource_name = list[i].resource_name;
+			char *resource_class = list[i].resource_class;
+			char *resource_type = list[i].resource_type;
+#endif
+			if (resource_name && resource_class && resource_type)
+			{
+			    PUSHs(sv_2mortal(newSVpv(resource_name, 0)));
+			    PUSHs(sv_2mortal(newSVpv(resource_class, 0)));
+			    PUSHs(sv_2mortal(newSVpv(resource_type, 0)));
+			    PUSHs(sv_2mortal(newSViv(list[i].resource_size)));
+			}
 		    }
 		}
 		else {
@@ -1813,10 +1892,22 @@ constraint_resources(widget_class)
 		    if (!c_widget_class->core_class.class_inited) {
 			XtResourceList list = c_widget_class->constraint_class.resources;
 			for (i = 0; i < num; ++i) {
-			    PUSHs(sv_2mortal(newSVpv(list[i].resource_name, 0)));
-			    PUSHs(sv_2mortal(newSVpv(list[i].resource_class, 0)));
-			    PUSHs(sv_2mortal(newSVpv(list[i].resource_type, 0)));
-			    PUSHs(sv_2mortal(newSViv(list[i].resource_size)));
+#ifdef HAS_FAST_QUARKS
+			    char *resource_name = (char *)_XQstring(list[i].resource_name);
+			    char *resource_class = (char *)_XQstring(list[i].resource_class);
+			    char *resource_type = (char *)_XQstring(list[i].resource_type);
+#else
+			    char *resource_name = list[i].resource_name;
+			    char *resource_class = list[i].resource_class;
+			    char *resource_type = list[i].resource_type;
+#endif
+			    if (resource_name && resource_class && resource_type)
+			    {
+				PUSHs(sv_2mortal(newSVpv(resource_name, 0)));
+				PUSHs(sv_2mortal(newSVpv(resource_class, 0)));
+				PUSHs(sv_2mortal(newSVpv(resource_type, 0)));
+				PUSHs(sv_2mortal(newSViv(list[i].resource_size)));
+			    }
 			}
 		    }
 		    else {
@@ -1858,6 +1949,48 @@ XtAppPeekEvent(app_context)
 
 
 MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Opaque
+
+
+
+MODULE = X11::Toolkit	PACKAGE = X::shared_perl_value
+
+void
+new(class_name, value)
+	char *		class_name
+	SV *		value
+	PPCODE:
+	    if (SvIOK(value) && (unsigned int)SvIV(value) < PERL_INT_MAX) {
+		/* Any integer >= 0 and < PERL_INT_MAX can be "boxed" or marked
+		   as a non-pointer.  This is a very useful optimization because it
+		   means that the SV itself does not need to be stored or garbage
+		   collected later. */
+
+		XPUSHs(sv_setref_iv(sv_newmortal(), "X::shared_perl_value", (SvIV(value) << 1) | 1));
+	    }
+	    else {
+		/* A copy of the input value is made so that aliasing does not occur.
+		   The term "share" in this context does not mean sharing a single Perl
+		   value, but allowing C to hold a Perl value for later use in Perl.  If
+		   value sharing is required, pass in a reference to a Perl value. */
+
+		SV *copy = newSVsv(value);
+		XPUSHs(sv_setref_pv(sv_newmortal(), "X::shared_perl_value", (void *)copy));
+	    }
+
+void
+DESTROY(self)
+	SV *		self
+	PPCODE:
+	    if (SvROK(self)) {
+		SV *value = (SV *)SvIV(SvRV(self));
+		if ((int)value & 1) {
+		    /* A "boxed" value is an immediate integer and don't need to
+		       be garbage collected. */
+		}
+		else {
+		    SvREFCNT_dec(value);
+		}
+	    }
 
 
 

@@ -19,7 +19,6 @@ priv_XtAppCreateShell(application_name, application_class, widget_class, display
 	OUTPUT:
 	    RETVAL
 
-
 Boolean
 XtCallConverter(dpy, converter, args, num_args, from, to_in_out, cache_ref_return)
 	Display *		dpy
@@ -29,11 +28,6 @@ XtCallConverter(dpy, converter, args, num_args, from, to_in_out, cache_ref_retur
 	XrmValuePtr		from
 	XrmValue *		to_in_out
 	XtCacheRef *		cache_ref_return
-
-char *
-XtCalloc(num, size)
-	Cardinal		num
-	Cardinal		size
 
 void
 XtCloseDisplay(dpy)
@@ -65,7 +59,6 @@ priv_XtCreateManagedWidget(name, widget_class, parent, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XtCreatePopupShell(name, widgetClass, parent, ...)
 	char *			name
@@ -81,7 +74,6 @@ priv_XtCreatePopupShell(name, widgetClass, parent, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XtCreateWidget(name, widget_class, parent, ...)
 	char *			name
@@ -96,7 +88,6 @@ priv_XtCreateWidget(name, widget_class, parent, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 XrmDatabase
 XtDatabase(dpy)
@@ -132,7 +123,10 @@ KeySym *
 XtGetKeysymTable(dpy, min_keycode_return, keysyms_per_keycode_return)
 	Display *		dpy
 	KeyCode *		min_keycode_return
-	int *			keysyms_per_keycode_return
+	int  			&keysyms_per_keycode_return
+	OUTPUT:
+	    RETVAL
+	    keysyms_per_keycode_return
 
 int
 XtGetMultiClickTime(dpy)
@@ -261,211 +255,6 @@ Widget
 XtWindowToWidget(display, window)
 	Display *		display
 	Window			window
-
-MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Context
-
-XtActionHookId
-XtAppAddActionHook(app_context, proc, client_data)
-	XtAppContext		app_context
-	XtActionHookProc	proc
-	XtPointer		client_data
-
-void
-XtAppAddActions(app_context, actions, num_actions)
-	XtAppContext		app_context
-	XtActionList		actions
-	Cardinal		num_actions
-
-XtInputId
-XtAppAddInput(app_context, source, condition, proc, closure)
-	XtAppContext		app_context
-	int			source
-	XtPointer		condition
-	XtInputCallbackProc	proc
-	XtPointer		closure
-
-XtIntervalId
-XtAppAddTimeOut(app_context, interval, proc, closure)
-	XtAppContext		app_context
-	unsigned long		interval
-	XtTimerCallbackProc	proc
-	XtPointer		closure
-
-XtWorkProcId
-XtAppAddWorkProc(app_context, proc, closure)
-	XtAppContext		app_context
-	XtWorkProc		proc
-	XtPointer		closure
-
-void
-XtAppError(app_context, message)
-	XtAppContext		app_context
-	char *			message
-
-void
-XtAppErrorMsg(app_context, name, type, class, def, params, num_params)
-	XtAppContext		app_context
-	char *			name
-	char *			type
-	char *			class
-	char *			def
-	String *		params
-	Cardinal *		num_params
-
-XrmDatabase *
-XtAppGetErrorDatabase(app_context)
-	XtAppContext		app_context
-
-void
-XtAppGetErrorDatabaseText(app_context, name, type, class, def, buffer_return, nbytes, database)
-	XtAppContext		app_context
-	char *			name
-	char *			type
-	char *			class
-	char *			def
-	String			buffer_return
-	int			nbytes
-	XrmDatabase		database
-
-unsigned long
-XtAppGetSelectionTimeout(app_context)
-	XtAppContext		app_context
-
-Widget
-priv_XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, ...)
-	XtAppContext *		app_context_return
-	char *			application_class
-	XrmOptionDescList	options
-	Cardinal		num_options
-	int *			argc_in_out
-	String *		argv_in_out
-	String *		fallback_resources
-	PREINIT:
-	    ArgList arg_list = 0;
-	    Cardinal arg_list_len = 0;
-	CODE:
-	    arg_list_len = xt_build_input_arg_list(0, 0, &arg_list, &ST(7), items - 7);
-	    RETVAL = XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, arg_list, arg_list_len);
-	    if (arg_list) free(arg_list);
-	OUTPUT:
-	    RETVAL
-
-
-void
-XtAppMainLoop(app_context)
-	XtAppContext		app_context
-
-void
-XtAppNextEvent(app_context, event_return)
-	XtAppContext		app_context
-	XEvent *		event_return
-
-Boolean
-XtAppPeekEvent(app_context, event_return)
-	XtAppContext		app_context
-	XEvent *		event_return
-
-XtInputMask
-XtAppPending(app_context)
-	XtAppContext		app_context
-
-void
-XtAppProcessEvent(app_context, mask)
-	XtAppContext		app_context
-	XtInputMask		mask
-
-void
-XtAppReleaseCacheRefs(app_context, cache_ref)
-	XtAppContext		app_context
-	XtCacheRef *		cache_ref
-
-XtErrorHandler
-XtAppSetErrorHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorHandler		handler
-
-XtErrorMsgHandler
-XtAppSetErrorMsgHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorMsgHandler	handler
-
-void
-XtAppSetFallbackResources(app_context, specification_list)
-	XtAppContext		app_context
-	String *		specification_list
-
-void
-XtAppSetSelectionTimeout(app_context, timeout)
-	XtAppContext		app_context
-	unsigned long		timeout
-
-void
-XtAppSetTypeConverter(app_context, from_type, to_type, converter, convert_args, num_args, cache_type, destructor)
-	XtAppContext		app_context
-	char *			from_type
-	char *			to_type
-	XtTypeConverter		converter
-	XtConvertArgList	convert_args
-	Cardinal		num_args
-	XtCacheType		cache_type
-	XtDestructor		destructor
-
-XtErrorHandler
-XtAppSetWarningHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorHandler		handler
-
-XtErrorMsgHandler
-XtAppSetWarningMsgHandler(app_context, handler)
-	XtAppContext		app_context
-	XtErrorMsgHandler	handler
-
-void
-XtAppWarning(app_context, message)
-	XtAppContext		app_context
-	char *			message
-
-void
-XtAppWarningMsg(app_context, name, type, class, def, params, num_params)
-	XtAppContext		app_context
-	char *			name
-	char *			type
-	char *			class
-	char *			def
-	String *		params
-	Cardinal *		num_params
-
-void
-XtDestroyApplicationContext(app_context)
-	XtAppContext		app_context
-
-void
-XtDisplayInitialize(app_context, dpy, application_name, application_class, options, num_options, argc, argv)
-	XtAppContext		app_context
-	Display *		dpy
-	char *			application_name
-	char *			application_class
-	XrmOptionDescRec *	options
-	Cardinal		num_options
-	int *			argc
-	char **			argv
-
-Display *
-XtOpenDisplay(app_context, display_string, application_name, application_class, options, num_options, argc, argv)
-	XtAppContext		app_context
-	char *			display_string
-	char *			application_name
-	char *			application_class
-	XrmOptionDescRec *	options
-	Cardinal		num_options
-	int *			argc
-	char **			argv
-
-XtLanguageProc
-XtSetLanguageProc(app_context, proc, client_data)
-	XtAppContext		app_context
-	XtLanguageProc		proc
-	XtPointer		client_data
 
 MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Widget
 
@@ -937,8 +726,6 @@ priv_XtSetValues(widget, ...)
 	    XtSetValues(widget, arg_list, arg_list_len);
 	    if (arg_list) free(arg_list);
 
-
-
 void
 XtSetWMColormapWindows(widget, list, count)
 	Widget			widget
@@ -998,4 +785,198 @@ XtWindow(widget)
 Window
 XtWindowOfObject(object)
 	Widget			object
+
+MODULE = X11::Toolkit	PACKAGE = X::Toolkit::Context
+
+XtActionHookId
+XtAppAddActionHook(app_context, proc, client_data)
+	XtAppContext		app_context
+	XtActionHookProc	proc
+	XtPointer		client_data
+
+void
+XtAppAddActions(app_context, actions, num_actions)
+	XtAppContext		app_context
+	XtActionList		actions
+	Cardinal		num_actions
+
+XtInputId
+XtAppAddInput(app_context, source, condition, proc, closure)
+	XtAppContext		app_context
+	int			source
+	XtPointer		condition
+	XtInputCallbackProc	proc
+	XtPointer		closure
+
+XtIntervalId
+XtAppAddTimeOut(app_context, interval, proc, closure)
+	XtAppContext		app_context
+	unsigned long		interval
+	XtTimerCallbackProc	proc
+	XtPointer		closure
+
+XtWorkProcId
+XtAppAddWorkProc(app_context, proc, closure)
+	XtAppContext		app_context
+	XtWorkProc		proc
+	XtPointer		closure
+
+void
+XtAppError(app_context, message)
+	XtAppContext		app_context
+	char *			message
+
+void
+XtAppErrorMsg(app_context, name, type, class, def, params, num_params)
+	XtAppContext		app_context
+	char *			name
+	char *			type
+	char *			class
+	char *			def
+	String *		params
+	Cardinal *		num_params
+
+XrmDatabase *
+XtAppGetErrorDatabase(app_context)
+	XtAppContext		app_context
+
+void
+XtAppGetErrorDatabaseText(app_context, name, type, class, def, buffer_return, nbytes, database)
+	XtAppContext		app_context
+	char *			name
+	char *			type
+	char *			class
+	char *			def
+	String			buffer_return
+	int			nbytes
+	XrmDatabase		database
+
+unsigned long
+XtAppGetSelectionTimeout(app_context)
+	XtAppContext		app_context
+
+Widget
+priv_XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, ...)
+	XtAppContext *		app_context_return
+	char *			application_class
+	XrmOptionDescList	options
+	Cardinal		num_options
+	int *			argc_in_out
+	String *		argv_in_out
+	String *		fallback_resources
+	PREINIT:
+	    ArgList arg_list = 0;
+	    Cardinal arg_list_len = 0;
+	CODE:
+	    arg_list_len = xt_build_input_arg_list(0, 0, &arg_list, &ST(7), items - 7);
+	    RETVAL = XtAppInitialize(app_context_return, application_class, options, num_options, argc_in_out, argv_in_out, fallback_resources, arg_list, arg_list_len);
+	    if (arg_list) free(arg_list);
+	OUTPUT:
+	    RETVAL
+
+void
+XtAppMainLoop(app_context)
+	XtAppContext		app_context
+
+XtInputMask
+XtAppPending(app_context)
+	XtAppContext		app_context
+
+void
+XtAppProcessEvent(app_context, mask)
+	XtAppContext		app_context
+	XtInputMask		mask
+
+void
+XtAppReleaseCacheRefs(app_context, cache_ref)
+	XtAppContext		app_context
+	XtCacheRef *		cache_ref
+
+XtErrorHandler
+XtAppSetErrorHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorHandler		handler
+
+XtErrorMsgHandler
+XtAppSetErrorMsgHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorMsgHandler	handler
+
+void
+XtAppSetFallbackResources(app_context, specification_list)
+	XtAppContext		app_context
+	String *		specification_list
+
+void
+XtAppSetSelectionTimeout(app_context, timeout)
+	XtAppContext		app_context
+	unsigned long		timeout
+
+void
+XtAppSetTypeConverter(app_context, from_type, to_type, converter, convert_args, num_args, cache_type, destructor)
+	XtAppContext		app_context
+	char *			from_type
+	char *			to_type
+	XtTypeConverter		converter
+	XtConvertArgList	convert_args
+	Cardinal		num_args
+	XtCacheType		cache_type
+	XtDestructor		destructor
+
+XtErrorHandler
+XtAppSetWarningHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorHandler		handler
+
+XtErrorMsgHandler
+XtAppSetWarningMsgHandler(app_context, handler)
+	XtAppContext		app_context
+	XtErrorMsgHandler	handler
+
+void
+XtAppWarning(app_context, message)
+	XtAppContext		app_context
+	char *			message
+
+void
+XtAppWarningMsg(app_context, name, type, class, def, params, num_params)
+	XtAppContext		app_context
+	char *			name
+	char *			type
+	char *			class
+	char *			def
+	String *		params
+	Cardinal *		num_params
+
+void
+XtDestroyApplicationContext(app_context)
+	XtAppContext		app_context
+
+void
+XtDisplayInitialize(app_context, dpy, application_name, application_class, options, num_options, argc, argv)
+	XtAppContext		app_context
+	Display *		dpy
+	char *			application_name
+	char *			application_class
+	XrmOptionDescRec *	options
+	Cardinal		num_options
+	int *			argc
+	char **			argv
+
+Display *
+XtOpenDisplay(app_context, display_string, application_name, application_class, options, num_options, argc, argv)
+	XtAppContext		app_context
+	char *			display_string
+	char *			application_name
+	char *			application_class
+	XrmOptionDescRec *	options
+	Cardinal		num_options
+	int *			argc
+	char **			argv
+
+XtLanguageProc
+XtSetLanguageProc(app_context, proc, client_data)
+	XtAppContext		app_context
+	XtLanguageProc		proc
+	XtPointer		client_data
 

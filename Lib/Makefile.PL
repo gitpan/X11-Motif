@@ -1,11 +1,12 @@
-#!/ford/thishost/unix/div/ap/bin/perl
 
-# Copyright 1997 by Ken Fox
+# Copyright 1997, 1998 by Ken Fox
 
 use ExtUtils::MakeMaker;
 require "../config.pm";
+do_reset_flags();
 
 $libs = join(' ', do_L_flag($x_lib_dir), $x_libs);
+
 $incs = join(' ', '-I.', do_I_flag($x_inc_dir));
 
 WriteMakefile('OPTIMIZE' => '-g',

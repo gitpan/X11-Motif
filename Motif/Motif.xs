@@ -3,6 +3,29 @@
 
 #include "motif-api.h"
 
+#ifdef WANT_XBAE
+
+typedef struct _XbaeAnyCallbackStruct
+{
+    XbaeReasonType reason;
+}
+XbaeAnyCallbackStruct;
+
+typedef struct _XbaeRowColumnCallbackStruct
+{
+    XbaeReasonType reason;
+    int row, column;
+}
+XbaeRowColumnCallbackStruct;
+
+char *XbaeAnyCallbackStructPtr_Package = "X::bae::AnyCallData";
+char *XbaeRowColumnCallbackStructPtr_Package = "X::bae::RowColumnCallData";
+char *XbaeMatrixDefaultActionCallbackStructPtr_Package = "X::bae::MatrixDefaultActionCallData";
+char *XbaeMatrixEnterCellCallbackStructPtr_Package = "X::bae::MatrixEnterCellCallData";
+char *XbaeMatrixLeaveCellCallbackStructPtr_Package = "X::bae::MatrixLeaveCellCallData";
+
+#endif
+
 char *XmString_Package = "X::Motif::String";
 char *XmAnyCallbackStructPtr_Package = "X::Motif::AnyCallData";
 char *XmArrowButtonCallbackStructPtr_Package = "X::Motif::ArrowButtonCallData";
@@ -45,13 +68,63 @@ static SV *cvt_from_UserData(Widget w, WidgetClass wc, XtOutArg in)
 {
     void *r = (void *)in->dst;
 
-    /* it would be very cool to allow perl scalars be attached as user data.
-       but how can we tell the difference between non-SV pointers and SVs??? */
+    /* This is a fast and dangerous implementation of Perl UserData.  It
+       assumes that any resource value that isn't a small integer is a
+       pointer to an SV.  If C code that uses UserData is mixed with Perl
+       code that uses UserData there could be fireworks.  The solution to
+       this is to keep all Perl UserData in an array.  Then the resource
+       value can be validated -- it might still be wrong, but at least
+       it wouldn't crash.  The severe down side to that approach is that
+       UserData becomes quite expensive to keep track of.
+
+       The above approach was modified slightly to take advantage of the
+       fact that SV pointers will be evenly aligned.  (Is there any
+       architecture that supports Motif that this isn't true for?)  If
+       an odd pointer is found, it is treated as a boxed unsigned integer. */
+
+    if (r) {
+	unsigned int v = (unsigned int)r;
+
+	if (v & 1) {
+	    /* A "boxed" value was stored instead of an SV.  This is the
+	       fastest and most efficient way of storing user data, but only
+	       positive integers less than PERL_INT_MAX can be stored. */
+
+	    return sv_2mortal(newSViv((int)(v >> 1)));
+	}
+	else if (v < 200) {
+	    /* Somebody is using C code with Perl -- a warning might
+	       be appropriate here because this will almost always indicate
+	       a bug. */
+
+	    return sv_2mortal(newSViv((int)v));
+	}
+	else {
+	    /* Assume that any other value is an SV *.  If this module is
+	       not used with any external C code then this is a safe assumption.
+	       If widgets are created with external C code and the user data
+	       is set from that code then there is a good chance that this will
+	       crash the application.  The bottom line is to be very careful
+	       when mixing Perl code and C code.
+
+	       The returned value is not mortalized because the widget maintains
+	       its copy.  It would probably be better to increment the reference
+	       count and mortalize the value.  This would protect against the
+	       possibility that the widget gets destroyed while the return value
+	       is still on the stack. */
+
+	    return r;
+	}
+    }
 
     return &sv_undef;
 }
 
 
+/* A much better job could be done in placing functions in the appropriate
+   packages.  The only trouble lies in exporting symbols to the global
+   name space -- it is a little bit slower when symbols are scattered
+   around.  FIXME */
 
 MODULE = X11::Motif	PACKAGE = X::Motif
 
@@ -281,6 +354,27 @@ xmMenuShellWidgetClass()
 	OUTPUT:
 	    RETVAL
 
+WidgetClass
+xpFolderWidgetClass()
+	CODE:
+	    RETVAL = xpFolderWidgetClass;
+	OUTPUT:
+	    RETVAL
+
+WidgetClass
+xpStackWidgetClass()
+	CODE:
+	    RETVAL = xpStackWidgetClass;
+	OUTPUT:
+	    RETVAL
+
+WidgetClass
+xpLinedAreaWidgetClass()
+	CODE:
+	    RETVAL = xpLinedAreaWidgetClass;
+	OUTPUT:
+	    RETVAL
+
 void
 XmIsPrimitive(self)
 	Widget		self
@@ -294,11 +388,73 @@ XmIsManager(self)
 	    if (XmIsManager(self)) { XPUSHs(&sv_yes); } else { XPUSHs(&sv_no); }
 
 
+
+MODULE = X11::Motif	PACKAGE = X::Toolkit::Widget
+
+void
+XpLinedAreaInsertOutlineColumn(w, col, width, object_ref, event_proc = 0)
+	Widget		w
+	int		col
+	int		width
+	SV *		object_ref
+	SV *		event_proc
+	PPCODE:
+	    if (object_ref && SvROK(object_ref) && sv_derived_from(object_ref, "Outline")) {
+		/* memory leak of event_proc and object_ref - FIXME */
+
+		if (event_proc) {
+		    event_proc = SvREFCNT_inc(event_proc);
+		}
+
+		XpLinedAreaInsertColumn(w, col, SvREFCNT_inc(object_ref),
+					XpLinedAreaWidth, width,
+					XpLinedAreaDivideVertical, 0,
+					XpLinedAreaCallEvent, xp_outliner_event_handler, event_proc,
+					XpLinedAreaCallExpose, xp_outliner_expose_handler, 0,
+					0);
+	    }
+
+void
+XpLinedAreaRedraw(w)
+	Widget		w
+
+void
+XpLinedAreaRedrawColumn(w, col, should_display)
+	Widget		w
+	int		col
+	int		should_display
+
+void
+XpLinedAreaRedrawCell(w, row, col)
+	Widget		w
+	int		row
+	int		col
+
+void
+XpLinedAreaSetRows(w, col, rows)
+	Widget		w
+	int		col
+	int		rows
+	PPCODE:
+	    XpLinedAreaChangeColumn(w, col, XpLinedAreaRows, rows, XpLinedAreaEnd);
+
+void
+XpLinedAreaGetRows(w)
+	Widget		w
+
+void
+XpLinedAreaScrollToRow(w, row)
+	Widget		w
+	int		row
+
+
+
+MODULE = X11::Motif	PACKAGE = X::Motif
+
 int
 XmListYToPos(w, y)
 	Widget		w
 	Position	y
-
 
 # ----------------------------------------------------------------------
 # The next section was derived from an automatically generated XS
@@ -366,7 +522,6 @@ priv_XmCreateArrowButton(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateBulletinBoard(p, name, ...)
 	Widget			p
@@ -380,7 +535,6 @@ priv_XmCreateBulletinBoard(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateBulletinBoardDialog(ds_p, name, ...)
@@ -396,7 +550,6 @@ priv_XmCreateBulletinBoardDialog(ds_p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateCascadeButton(parent, name, ...)
 	Widget			parent
@@ -410,7 +563,6 @@ priv_XmCreateCascadeButton(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateCommand(parent, name, ...)
@@ -426,7 +578,6 @@ priv_XmCreateCommand(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateCommandDialog(ds_p, name, ...)
 	Widget			ds_p
@@ -440,7 +591,6 @@ priv_XmCreateCommandDialog(ds_p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateDialogShell(p, name, ...)
@@ -456,7 +606,6 @@ priv_XmCreateDialogShell(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateDrawingArea(p, name, ...)
 	Widget			p
@@ -470,7 +619,6 @@ priv_XmCreateDrawingArea(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateDrawnButton(parent, name, ...)
@@ -486,7 +634,6 @@ priv_XmCreateDrawnButton(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateErrorDialog(parent, name, ...)
 	Widget			parent
@@ -500,7 +647,6 @@ priv_XmCreateErrorDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateFileSelectionBox(p, name, ...)
@@ -516,7 +662,6 @@ priv_XmCreateFileSelectionBox(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateFileSelectionDialog(ds_p, name, ...)
 	Widget			ds_p
@@ -530,7 +675,6 @@ priv_XmCreateFileSelectionDialog(ds_p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateForm(parent, name, ...)
@@ -546,7 +690,6 @@ priv_XmCreateForm(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateFormDialog(parent, name, ...)
 	Widget			parent
@@ -560,7 +703,6 @@ priv_XmCreateFormDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateFrame(parent, name, ...)
@@ -576,7 +718,6 @@ priv_XmCreateFrame(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateInformationDialog(parent, name, ...)
 	Widget			parent
@@ -590,7 +731,6 @@ priv_XmCreateInformationDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateLabel(parent, name, ...)
@@ -606,7 +746,6 @@ priv_XmCreateLabel(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateList(parent, name, ...)
 	Widget			parent
@@ -620,7 +759,6 @@ priv_XmCreateList(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateMainWindow(parent, name, ...)
@@ -636,7 +774,6 @@ priv_XmCreateMainWindow(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateMenuBar(p, name, ...)
 	Widget			p
@@ -650,7 +787,6 @@ priv_XmCreateMenuBar(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateMenuShell(parent, name, ...)
@@ -666,7 +802,6 @@ priv_XmCreateMenuShell(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateMessageBox(parent, name, ...)
 	Widget			parent
@@ -680,7 +815,6 @@ priv_XmCreateMessageBox(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateMessageDialog(parent, name, ...)
@@ -696,7 +830,6 @@ priv_XmCreateMessageDialog(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateOptionMenu(p, name, ...)
 	Widget			p
@@ -710,7 +843,6 @@ priv_XmCreateOptionMenu(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreatePanedWindow(parent, name, ...)
@@ -726,7 +858,6 @@ priv_XmCreatePanedWindow(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreatePopupMenu(p, name, ...)
 	Widget			p
@@ -740,7 +871,6 @@ priv_XmCreatePopupMenu(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreatePromptDialog(ds_p, name, ...)
@@ -756,7 +886,6 @@ priv_XmCreatePromptDialog(ds_p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreatePulldownMenu(p, name, ...)
 	Widget			p
@@ -770,7 +899,6 @@ priv_XmCreatePulldownMenu(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreatePushButton(parent, name, ...)
@@ -786,7 +914,6 @@ priv_XmCreatePushButton(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateQuestionDialog(parent, name, ...)
 	Widget			parent
@@ -800,7 +927,6 @@ priv_XmCreateQuestionDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateRadioBox(p, name, ...)
@@ -816,7 +942,6 @@ priv_XmCreateRadioBox(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateRowColumn(p, name, ...)
 	Widget			p
@@ -830,7 +955,6 @@ priv_XmCreateRowColumn(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateScale(parent, name, ...)
@@ -846,7 +970,6 @@ priv_XmCreateScale(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateScrollBar(parent, name, ...)
 	Widget			parent
@@ -860,7 +983,6 @@ priv_XmCreateScrollBar(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateScrolledList(parent, name, ...)
@@ -876,7 +998,6 @@ priv_XmCreateScrolledList(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateScrolledText(parent, name, ...)
 	Widget			parent
@@ -890,7 +1011,6 @@ priv_XmCreateScrolledText(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateScrolledWindow(parent, name, ...)
@@ -906,7 +1026,6 @@ priv_XmCreateScrolledWindow(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSelectionBox(p, name, ...)
 	Widget			p
@@ -920,7 +1039,6 @@ priv_XmCreateSelectionBox(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSelectionDialog(ds_p, name, ...)
@@ -936,7 +1054,6 @@ priv_XmCreateSelectionDialog(ds_p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSeparator(parent, name, ...)
 	Widget			parent
@@ -950,7 +1067,6 @@ priv_XmCreateSeparator(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSimpleCheckBox(parent, name, ...)
@@ -966,7 +1082,6 @@ priv_XmCreateSimpleCheckBox(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSimpleMenuBar(parent, name, ...)
 	Widget			parent
@@ -980,7 +1095,6 @@ priv_XmCreateSimpleMenuBar(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSimpleOptionMenu(parent, name, ...)
@@ -996,7 +1110,6 @@ priv_XmCreateSimpleOptionMenu(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSimplePopupMenu(parent, name, ...)
 	Widget			parent
@@ -1010,7 +1123,6 @@ priv_XmCreateSimplePopupMenu(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSimplePulldownMenu(parent, name, ...)
@@ -1026,7 +1138,6 @@ priv_XmCreateSimplePulldownMenu(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSimpleRadioBox(parent, name, ...)
 	Widget			parent
@@ -1040,7 +1151,6 @@ priv_XmCreateSimpleRadioBox(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateTemplateDialog(parent, name, ...)
@@ -1056,7 +1166,6 @@ priv_XmCreateTemplateDialog(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateText(parent, name, ...)
 	Widget			parent
@@ -1070,7 +1179,6 @@ priv_XmCreateText(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateTextField(parent, name, ...)
@@ -1086,7 +1194,6 @@ priv_XmCreateTextField(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateToggleButton(parent, name, ...)
 	Widget			parent
@@ -1100,7 +1207,6 @@ priv_XmCreateToggleButton(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateWarningDialog(parent, name, ...)
@@ -1116,7 +1222,6 @@ priv_XmCreateWarningDialog(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateWorkArea(p, name, ...)
 	Widget			p
@@ -1131,7 +1236,6 @@ priv_XmCreateWorkArea(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateWorkingDialog(parent, name, ...)
 	Widget			parent
@@ -1145,7 +1249,6 @@ priv_XmCreateWorkingDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Boolean
 XmDestroyPixmap(screen, pixmap)
@@ -2478,7 +2581,7 @@ new(class_name, text)
 void
 DESTROY(self)
 	XmString	self
-	CODE:
+	PPCODE:
 	    if (self) {
 		XmStringFree(self);
 	    }
@@ -2492,9 +2595,150 @@ plain(self)
 	    RETVAL
 
 
+
+MODULE = X11::Motif	PACKAGE = X::bae
+
+#ifdef WANT_XBAE
+
+WidgetClass
+xbaeMatrixWidgetClass()
+	CODE:
+	    RETVAL = xbaeMatrixWidgetClass;
+	OUTPUT:
+	    RETVAL
+
+WidgetClass
+xbaeCaptionWidgetClass()
+	CODE:
+	    RETVAL = xbaeCaptionWidgetClass;
+	OUTPUT:
+	    RETVAL
+
+void
+XbaeMatrixRefresh(widget)
+	Widget					widget
+
+void
+XbaeMatrixRefreshCell(widget, row, column)
+	Widget					widget
+	int					row
+	int					column
+
+void
+XbaeMatrixSetCell(widget, row, column, value)
+	Widget					widget
+	int					row
+	int					column
+	char *					value
+
+
+MODULE = X11::Motif	PACKAGE = X::bae::AnyCallData
+
+int
+reason(self)
+	XbaeAnyCallbackStruct *			self
+	CODE:
+	    RETVAL = self->reason;
+	OUTPUT:
+	    RETVAL
+
+MODULE = X11::Motif	PACKAGE = X::bae::RowColumnCallData
+
+int
+row(self)
+	XbaeRowColumnCallbackStruct *		self
+	CODE:
+	    RETVAL = self->row;
+	OUTPUT:
+	    RETVAL
+
+int
+column(self)
+	XbaeRowColumnCallbackStruct *		self
+	CODE:
+	    RETVAL = self->column;
+	OUTPUT:
+	    RETVAL
+
+MODULE = X11::Motif	PACKAGE = X::bae::MatrixDefaultActionCallData
+
+MODULE = X11::Motif	PACKAGE = X::bae::MatrixEnterCellCallData
+
+int
+select_text(self, set = -1)
+	XbaeMatrixEnterCellCallbackStruct *	self
+	int					set
+	CODE:
+	    if (set > -1) {
+		self->select_text = set;
+	    }
+	    RETVAL = self->select_text;
+	OUTPUT:
+	    RETVAL
+
+int
+map(self, set = -1)
+	XbaeMatrixEnterCellCallbackStruct *	self
+	int					set
+	CODE:
+	    if (set > -1) {
+		self->map = set;
+	    }
+	    RETVAL = self->map;
+	OUTPUT:
+	    RETVAL
+
+int
+doit(self, set = -1)
+	XbaeMatrixEnterCellCallbackStruct *	self
+	int					set
+	CODE:
+	    if (set > -1) {
+		self->doit = set;
+	    }
+	    RETVAL = self->doit;
+	OUTPUT:
+	    RETVAL
+
+MODULE = X11::Motif	PACKAGE = X::bae::MatrixLeaveCellCallData
+
+char *
+value(self, set = 0)
+	XbaeMatrixLeaveCellCallbackStruct *	self
+	char *					set
+	CODE:
+	    if (set != 0) {
+		if (self->value && strlen(self->value) >= strlen(set)) {
+		    strcpy(self->value, set);
+		}
+		else {
+		    self->value = XtNewString(set);
+		}
+	    }
+	    RETVAL = self->value;
+	OUTPUT:
+	    RETVAL
+
+int
+doit(self, set = -1)
+	XbaeMatrixLeaveCellCallbackStruct *	self
+	int					set
+	CODE:
+	    if (set > -1) {
+		self->doit = set;
+	    }
+	    RETVAL = self->doit;
+	OUTPUT:
+	    RETVAL
+
+#endif
+
+
 BOOT:
     register_resource_converter_by_type("XmString",	0, cvt_from_XmString);
     register_resource_converter_by_class("UserData",	0, cvt_from_UserData);
-
+    /* when linking statically the Toolkit's bootstrap statement is
+       inserted into the perl main(). */
+#ifndef HAVE_TOOLKIT_BOOT
     newXSproto("X11::Toolkit::bootstrap", boot_X11__Toolkit, file, "");
-
+#endif

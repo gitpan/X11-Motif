@@ -15,6 +15,11 @@ my $cpp = "gcc -I/usr/dt/include -I/usr/openwin/include -ansi -E -P -C $tmp_file
 
 my $module_wanted = $ARGV[0];
 
+if (!defined($module_wanted) ||
+    ($module_wanted ne "Lib" && $module_wanted ne "Toolkit" && $module_wanted ne "Motif")) {
+    die "Do you know what you're doing?\n";
+}
+
 open(C_SOURCE, "> $tmp_file") || die "Can't open temp file $tmp_file";
 
 if ($module_wanted eq "Lib") {
@@ -110,16 +115,23 @@ my @noAllocators = qw(XtFree XtMalloc XtRealloc XtCalloc XtNew XtNewString ^XFre
 my @noMisc = qw(^XVa XQueryKeymap XrmQGetSearchList XrmQGetSearchResource
 		^XtVa ^XmVa ^XtCvt ^XmCvt
 		XtParent XtAddCallback XtMergeArgLists
-		XmCvtXmStringToText XmCvtTextToXmString XmListYToPos);
+		XmCvtXmStringToText XmCvtTextToXmString XmListYToPos
+		XtAppNextEvent XtAppPeekEvent);
 
 my @noGetValues = qw(XtGetActionList XtGetApplicationNameAndClass XtGetApplicationResources
 		     XtGetConstraintResourceList XtGetResourceList XtGetSubresources
 		     XtGetSubvalues XtGetValues
 		     XtSetSubvalues);
 
+
+my @no_SGI_Stuff = qw(OC OM IM ConnectionWatch XInternAtoms
+		      XReadBitmapFileData XConvertCase XContextualDrawing
+		      XDirectionalDependentDrawing XProcessInternalConnection
+		      XGetAtomNames XInternalConnectionNumbers XInitImage);
+
 my $code = "sub ignore_function { my(\$f) = \@_;\n";
 foreach my $pattern (@noXlibExtensions, @noPredicates, @noLocaleStuff,
-		     @noAllocators, @noMisc, @noGetValues)
+		     @noAllocators, @noMisc, @noGetValues, @no_SGI_Stuff)
 {
     $code .= " return 1 if (\$f =~ m/$pattern/);\n";
 }
@@ -189,7 +201,9 @@ close CPP;
 unlink $tmp_file;
 
     FUNCTION: foreach $function (sort keys %{$symbols{$module_wanted}}) {
+
 	my $info = $symbols{$module_wanted}{$function};
+
 	if ($info->[1] =~ /[()]/) {
 	    print STDERR $info->[0], "\n";
 	    print STDERR "$function(", $info->[1], ")\n";
@@ -199,20 +213,29 @@ unlink $tmp_file;
 	    my @arg_list = ();
 	    my @arg_decl = ();
 	    my %args_seen = ();
+	    my @return_values = ();
+	    my $function_body = "";
+	    my $in_module;
+
 	    reset_arg();
+
 	    foreach my $raw_arg (split(m|,\s*|, $info->[1])) {
 		my($type, $arg) = figure_out_arg($raw_arg);
 		my $orig_arg = $arg;
 		my $count = 1;
+
 		while (exists $args_seen{$arg}) {
 		    $arg = $orig_arg . '_' . $count++;
 		}
+
 		$args_seen{$arg} = 1;
 		push @arg_list, $arg;
+
 		if (defined $type) {
 		    push @arg_decl, format_arg_decl($type, $arg);
 		}
 	    }
+
 	    if (scalar(@arg_decl) >= 2) {
 		if ($arg_decl[$#arg_decl]     =~ /^\tCardinal\s+/ &&
 		    ($arg_decl[$#arg_decl - 1] =~ /^\tArgList\s+/ ||
@@ -243,14 +266,16 @@ unlink $tmp_file;
 			$the_widgetclass = "XtClass($the_widget)";
 		    }
 
-		    my $retval = "RETVAL = ";
-		    my $output = "	OUTPUT:\n	    RETVAL";
+		    my $retval;
 		    if ($info->[0] eq "void") {
 			$retval = "";
-			$output = "";
+		    }
+		    else {
+			$retval = "RETVAL = ";
+			unshift @return_values, "RETVAL";
 		    }
 
-		    push @arg_decl, <<"EOF";
+		    $function_body = <<"EOF";
 	PREINIT:
 	    ArgList arg_list = 0;
 	    Cardinal arg_list_len = 0;
@@ -258,7 +283,6 @@ unlink $tmp_file;
 	    arg_list_len = xt_build_input_arg_list($the_widget, $the_widgetclass, &arg_list, &ST($arg_count), items - $arg_count);
 	    $retval$function($args, arg_list, arg_list_len);
 	    if (arg_list) free(arg_list);
-$output
 EOF
 
 		    $function = "priv_$function";
@@ -267,29 +291,81 @@ EOF
 	    }
 
 	    if (scalar @arg_decl > 0) {
-		my $in_module;
 		if ($arg_decl[0] =~ /^\t(\w+)\s/) {
 		    $in_module = $1;
 		}
-		if (defined $in_module && exists $delayed_output{$in_module}) {
-		    $delayed_output{$in_module} .= $info->[0]."\n";
-		    $delayed_output{$in_module} .= "$function(".join(", ", @arg_list).")\n";
-		    $delayed_output{$in_module} .= join("\n", @arg_decl)."\n\n";
-		    next FUNCTION;
+
+		for (my $i = 0; $i < scalar @arg_decl; ++$i) {
+		    if (matches_IN_OUT_argument($arg_decl[$i])) {
+			$arg_decl[$i] =~ s|\*| |;
+			$arg_decl[$i] =~ s|(\w+)$|&$1|;
+			push @return_values, $arg_list[$i],
+		    }
 		}
 	    }
 
-	    print $info->[0], "\n";
-	    print "$function(", join(", ", @arg_list), ")\n";
-	    print join("\n", @arg_decl), "\n\n";
+	## this is gross.  there needs to be a single routine to emit a
+	## function prototype.  then the output of that should be either
+	## printed or delayed.  FIXME
+
+	    if (defined $in_module && exists $delayed_output{$in_module}) {
+		$delayed_output{$in_module} .= $info->[0] . "\n";
+		$delayed_output{$in_module} .= "$function(" . join(", ", @arg_list) . ")\n";
+		$delayed_output{$in_module} .= join("\n", @arg_decl) . "\n";
+
+		$delayed_output{$in_module} .= $function_body;
+
+		if (@return_values) {
+		    if ($return_values[0] ne "RETVAL" && $info->[0] ne "void") {
+			unshift @return_values, "RETVAL";
+		    }
+		    $delayed_output{$in_module} .= "\tOUTPUT:\n\t    ";
+		    $delayed_output{$in_module} .= join("\n\t    ", @return_values) . "\n";
+		}
+
+		$delayed_output{$in_module} .= "\n";
+	    }
+	    else {
+		print $info->[0], "\n";
+		print "$function(", join(", ", @arg_list), ")\n";
+		print join("\n", @arg_decl), "\n";
+
+		print $function_body;
+
+		if (@return_values) {
+		    if ($return_values[0] ne "RETVAL" && $info->[0] ne "void") {
+			unshift @return_values, "RETVAL";
+		    }
+		    print "\tOUTPUT:\n\t    ";
+		    print join("\n\t    ", @return_values), "\n";
+		}
+
+		print "\n";
+	    }
 	}
     }
 
-foreach (keys %delayed_output) {
+foreach (sort keys %delayed_output) {
     print $delayed_output{$_};
 }
 
 exit 0;
+
+sub matches_IN_OUT_argument {
+    my($arg) = @_;
+
+    if (($arg =~ m|^\s*XrmDatabase\s+\*\s|) ||
+	($arg =~ m|^\s*Pixmap\s+\*\s| && $arg =~ m|return$|) ||
+	($arg =~ m|^\s*Window\s+\*\s| && $arg =~ m|return$|) ||
+	($arg =~ m|^\s*Atom\s+\*\s| && $arg =~ m|return$|) ||
+	($arg =~ m|^\s*int\s+\*\s| && $arg =~ m|return$|) ||
+	($arg =~ m|^\s*unsigned int\s+\*\s| && $arg =~ m|return$|) ||
+	($arg =~ m|^\s*long\s+\*\s| && $arg =~ m|return$|) ||
+	($arg =~ m|^\s*unsigned long\s+\*\s| && $arg =~ m|return$|))
+    {
+	1;
+    }
+}
 
 sub format_arg_decl {
     my($type, $arg) = @_;

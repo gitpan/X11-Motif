@@ -79,6 +79,10 @@ XMappingEvent *				T_X_PTR
 XButtonPressedEvent *			T_X_PTR
 XSelectionRequestEvent *		T_X_PTR
 
+# these are all structure pointers (used as input/output)
+
+XrmDatabase *				T_DUMMY
+
 # This next section contains (all? mostly?) output types.  They
 # will certainly require special handling.  They way they're
 # defined right now will probably cause a core dump if used.
@@ -98,7 +102,6 @@ XPointer *				T_DUMMY
 
 XrmBindingList				T_DUMMY
 XrmClassList				T_DUMMY
-XrmDatabase *				T_DUMMY
 XrmNameList				T_DUMMY
 XrmOptionDescList			T_DUMMY
 XrmQuarkList				T_DUMMY
@@ -250,6 +253,35 @@ XmStringComponentType *			T_DUMMY
 XmStringContext *			T_DUMMY
 XmStringDirection *			T_DUMMY
 XmTextPosition *			T_DUMMY
+
+# --------------------------------------------------------------------------------
+# Xbae
+
+XbaeAnyCallbackStruct *			T_X_PTR
+XbaeRowColumnCallbackStruct *		T_X_PTR
+XbaeMatrixDefaultActionCallbackStruct *	T_X_PTR
+XbaeMatrixEnterCellCallbackStruct *	T_X_PTR
+XbaeMatrixLeaveCellCallbackStruct *	T_X_PTR
+
+# --------------------------------------------------------------------------------
+# XRT
+
+XrtTextHandle				T_X_PTR
+XrtDataHandle				T_X_PTR
+
+XrtAnyCallbackStruct *			T_X_PTR
+XrtAnyGearCallbackStruct *		T_X_PTR
+XrtGenericContainerCallbackStruct *	T_X_PTR
+XrtGearNodeFolderStateCallbackStruct *	T_X_PTR
+XrtGearSelectCallbackStruct *		T_X_PTR
+XrtGearNodeActivateCallbackStruct *	T_X_PTR
+
+Xrt_perl_GearString			T_X_PTR
+Xrt_perl_GearList			T_X_PTR
+Xrt_perl_DataStyle			T_X_PTR
+Xrt_perl_DataStyles			T_X_PTR
+Xrt_perl_Strings			T_X_PTR
+Xrt_perl_Float				T_X_PTR
 
 # ================================================================================
 # The input/output type conversions follow.  The converters should

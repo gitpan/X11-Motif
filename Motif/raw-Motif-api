@@ -59,7 +59,6 @@ priv_XmCreateArrowButton(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateBulletinBoard(p, name, ...)
 	Widget			p
@@ -73,7 +72,6 @@ priv_XmCreateBulletinBoard(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateBulletinBoardDialog(ds_p, name, ...)
@@ -89,7 +87,6 @@ priv_XmCreateBulletinBoardDialog(ds_p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateCascadeButton(parent, name, ...)
 	Widget			parent
@@ -103,7 +100,6 @@ priv_XmCreateCascadeButton(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateCommand(parent, name, ...)
@@ -119,7 +115,6 @@ priv_XmCreateCommand(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateCommandDialog(ds_p, name, ...)
 	Widget			ds_p
@@ -133,7 +128,6 @@ priv_XmCreateCommandDialog(ds_p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateDialogShell(p, name, ...)
@@ -149,7 +143,6 @@ priv_XmCreateDialogShell(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateDrawingArea(p, name, ...)
 	Widget			p
@@ -163,7 +156,6 @@ priv_XmCreateDrawingArea(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateDrawnButton(parent, name, ...)
@@ -179,7 +171,6 @@ priv_XmCreateDrawnButton(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateErrorDialog(parent, name, ...)
 	Widget			parent
@@ -193,7 +184,6 @@ priv_XmCreateErrorDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateFileSelectionBox(p, name, ...)
@@ -209,7 +199,6 @@ priv_XmCreateFileSelectionBox(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateFileSelectionDialog(ds_p, name, ...)
 	Widget			ds_p
@@ -223,7 +212,6 @@ priv_XmCreateFileSelectionDialog(ds_p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateForm(parent, name, ...)
@@ -239,7 +227,6 @@ priv_XmCreateForm(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateFormDialog(parent, name, ...)
 	Widget			parent
@@ -253,7 +240,6 @@ priv_XmCreateFormDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateFrame(parent, name, ...)
@@ -269,7 +255,6 @@ priv_XmCreateFrame(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateInformationDialog(parent, name, ...)
 	Widget			parent
@@ -283,7 +268,6 @@ priv_XmCreateInformationDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateLabel(parent, name, ...)
@@ -299,7 +283,6 @@ priv_XmCreateLabel(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateList(parent, name, ...)
 	Widget			parent
@@ -313,7 +296,6 @@ priv_XmCreateList(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateMainWindow(parent, name, ...)
@@ -329,7 +311,6 @@ priv_XmCreateMainWindow(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateMenuBar(p, name, ...)
 	Widget			p
@@ -343,7 +324,6 @@ priv_XmCreateMenuBar(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateMenuShell(parent, name, ...)
@@ -359,7 +339,6 @@ priv_XmCreateMenuShell(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateMessageBox(parent, name, ...)
 	Widget			parent
@@ -373,7 +352,6 @@ priv_XmCreateMessageBox(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateMessageDialog(parent, name, ...)
@@ -389,7 +367,6 @@ priv_XmCreateMessageDialog(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateOptionMenu(p, name, ...)
 	Widget			p
@@ -403,7 +380,6 @@ priv_XmCreateOptionMenu(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreatePanedWindow(parent, name, ...)
@@ -419,7 +395,6 @@ priv_XmCreatePanedWindow(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreatePopupMenu(p, name, ...)
 	Widget			p
@@ -433,7 +408,6 @@ priv_XmCreatePopupMenu(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreatePromptDialog(ds_p, name, ...)
@@ -449,7 +423,6 @@ priv_XmCreatePromptDialog(ds_p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreatePulldownMenu(p, name, ...)
 	Widget			p
@@ -463,7 +436,6 @@ priv_XmCreatePulldownMenu(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreatePushButton(parent, name, ...)
@@ -479,7 +451,6 @@ priv_XmCreatePushButton(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateQuestionDialog(parent, name, ...)
 	Widget			parent
@@ -493,7 +464,6 @@ priv_XmCreateQuestionDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateRadioBox(p, name, ...)
@@ -509,7 +479,6 @@ priv_XmCreateRadioBox(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateRowColumn(p, name, ...)
 	Widget			p
@@ -523,7 +492,6 @@ priv_XmCreateRowColumn(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateScale(parent, name, ...)
@@ -539,7 +507,6 @@ priv_XmCreateScale(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateScrollBar(parent, name, ...)
 	Widget			parent
@@ -553,7 +520,6 @@ priv_XmCreateScrollBar(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateScrolledList(parent, name, ...)
@@ -569,7 +535,6 @@ priv_XmCreateScrolledList(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateScrolledText(parent, name, ...)
 	Widget			parent
@@ -583,7 +548,6 @@ priv_XmCreateScrolledText(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateScrolledWindow(parent, name, ...)
@@ -599,7 +563,6 @@ priv_XmCreateScrolledWindow(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSelectionBox(p, name, ...)
 	Widget			p
@@ -613,7 +576,6 @@ priv_XmCreateSelectionBox(p, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSelectionDialog(ds_p, name, ...)
@@ -629,7 +591,6 @@ priv_XmCreateSelectionDialog(ds_p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSeparator(parent, name, ...)
 	Widget			parent
@@ -643,7 +604,6 @@ priv_XmCreateSeparator(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSimpleCheckBox(parent, name, ...)
@@ -659,7 +619,6 @@ priv_XmCreateSimpleCheckBox(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSimpleMenuBar(parent, name, ...)
 	Widget			parent
@@ -673,7 +632,6 @@ priv_XmCreateSimpleMenuBar(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSimpleOptionMenu(parent, name, ...)
@@ -689,7 +647,6 @@ priv_XmCreateSimpleOptionMenu(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSimplePopupMenu(parent, name, ...)
 	Widget			parent
@@ -703,7 +660,6 @@ priv_XmCreateSimplePopupMenu(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateSimplePulldownMenu(parent, name, ...)
@@ -719,7 +675,6 @@ priv_XmCreateSimplePulldownMenu(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateSimpleRadioBox(parent, name, ...)
 	Widget			parent
@@ -733,7 +688,6 @@ priv_XmCreateSimpleRadioBox(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateTemplateDialog(parent, name, ...)
@@ -749,7 +703,6 @@ priv_XmCreateTemplateDialog(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateText(parent, name, ...)
 	Widget			parent
@@ -763,7 +716,6 @@ priv_XmCreateText(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateTextField(parent, name, ...)
@@ -779,7 +731,6 @@ priv_XmCreateTextField(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateToggleButton(parent, name, ...)
 	Widget			parent
@@ -793,7 +744,6 @@ priv_XmCreateToggleButton(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Widget
 priv_XmCreateWarningDialog(parent, name, ...)
@@ -809,7 +759,6 @@ priv_XmCreateWarningDialog(parent, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateWorkArea(p, name, ...)
 	Widget			p
@@ -824,7 +773,6 @@ priv_XmCreateWorkArea(p, name, ...)
 	OUTPUT:
 	    RETVAL
 
-
 Widget
 priv_XmCreateWorkingDialog(parent, name, ...)
 	Widget			parent
@@ -838,7 +786,6 @@ priv_XmCreateWorkingDialog(parent, name, ...)
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
-
 
 Boolean
 XmDestroyPixmap(screen, pixmap)

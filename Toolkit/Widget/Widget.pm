@@ -13,6 +13,7 @@ use Carp;
 
 use vars qw(%class_registry %resource_registry %resource_alias
 	    %constraint_resource_registry %constraint_resource_alias
+	    %resource_conversion_mandatory %resource_conversion_prohibited
 	    %class_converter_to %type_converter_to %type_registry
 	    %constraint_handlers %call_data_registry %resource_hints);
 
@@ -21,13 +22,15 @@ use vars qw(%class_registry %resource_registry %resource_alias
 %resource_alias = ();
 %constraint_resource_registry = ();
 %constraint_resource_alias = ();
+%resource_conversion_mandatory = ();
+%resource_conversion_prohibited = ( 'String' => 1 );
 %class_converter_to = ();
 %type_converter_to = ();
 %type_registry = ();
 %constraint_handlers = ();
 %call_data_registry = ();
 
-$resource_alias{"Core"} = { 'bg' => 'background' };
+$resource_alias{'Core'} = { 'bg' => 'background', 'fg' => 'foreground' };
 
 # Resource Hints:
 #
@@ -40,13 +43,25 @@ $resource_alias{"Core"} = { 'bg' => 'background' };
 
 %resource_hints = ( 'Dimension' => 'u', 'ShellHorizDim' => 'u', 'ShellVertDim' => 'u' );
 
+my $event_loop_nesting = 0;
+
 # ================================================================================
 # Utility functions
 
-sub Realize { X::Toolkit::Widget::RealizeWidget($_[0]) }
-sub Manage { X::Toolkit::Widget::ManageChild($_[0]) }
-sub Unmanage { X::Toolkit::Widget::UnmanageChild($_[0]) }
-sub ToApplicationContext { X::Toolkit::Widget::WidgetToApplicationContext($_[0]) }
+sub Realize { XtRealizeWidget($_[0]) }
+sub Manage { XtManageChild($_[0]) }
+sub Unmanage { XtUnmanageChild($_[0]) }
+sub GetContext { XtWidgetToApplicationContext($_[0]) }
+
+sub FullName {
+    my $w = shift;
+    my @name = ();
+    while ($w) {
+	unshift @name, XtName($w);
+	$w = XtParent($w);
+    }
+    join('.', @name);
+}
 
 sub constraint_resource_info {
     my($self, $res_name) = @_;
@@ -98,6 +113,18 @@ sub resource_info {
     @output;
 }
 
+sub conversion_is_mandatory {
+    my($res_type) = @_;
+
+    $resource_conversion_mandatory{$res_type}++;
+}
+
+sub conversion_is_prohibited {
+    my($res_type) = @_;
+
+    $resource_conversion_prohibited{$res_type}++;
+}
+
 sub register_converter {
     my($res_type, $to) = @_;
 
@@ -125,12 +152,21 @@ sub set_resource {
 	$name = $name->[0];
     }
 
+    # $info->[0] = resource class
+    # $info->[1] = resource type
+    # $info->[2] = resource size
+
     my $info = $registry->{$name};
 
-    if ($info->[1] eq "Callback") {
+    if ($info->[1] eq 'Callback') {
+
+	# Callbacks aren't treated as normal resources since they
+	# must be set using the special XtAddCallback() interface.
+
 	$callbacks->{$name} = $value if (defined $callbacks);
     }
-    elsif ($info->[1] eq "String") {
+    elsif (defined $resource_conversion_prohibited{$info->[1]}) {
+
 	# Force the toolkit to use a string value instead of trying
 	# to run a conversion sequence.  The rule of thumb is if you
 	# use a C string to set the resource value, then the resource
@@ -138,28 +174,71 @@ sub set_resource {
 
 	$resources->{$name} = X::Toolkit::InArg::new($value, $info->[1], $info->[2], 1);
     }
-    else {
-	if (X::is_string($value)) {
-	    # first, try to run a perl class resource converter on the value
+    elsif (defined $resource_conversion_mandatory{$info->[1]}) {
 
-	    foreach my $proc (@{$class_converter_to{$info->[0]}}) {
+	# If resource conversion is mandatory, then the class and type
+	# converters will always be run -- regardless of what the input
+	# resource value is.
+
+	foreach my $proc (@{$class_converter_to{$info->[0]}}) {
+	    &{$proc}(\$value);
+	}
+
+	foreach my $proc (@{$type_converter_to{$info->[1]}}) {
+	    &{$proc}(\$value);
+	}
+
+	$resources->{$name} = $value;
+    }
+    elsif (X::is_string($value)) {
+
+	# If the input value is a string, try running through the resource
+	# converters until one of them returns a non-string value.
+
+	# First, try to run a class-based resource converter on the value.
+
+	foreach my $proc (@{$class_converter_to{$info->[0]}}) {
+	    last if (&{$proc}(\$value));
+	}
+
+	if (X::is_string($value)) {
+
+	    # Next, try to run a type-based resource converter on the value.
+
+	    foreach my $proc (@{$type_converter_to{$info->[1]}}) {
 		last if (&{$proc}(\$value));
 	    }
 
-	    if (X::is_string($value)) {
-		# next, try to run a perl type resource converter on the value
+	    if (X::is_string($value) && !X::is_numeric($value)) {
 
-		foreach my $proc (@{$type_converter_to{$info->[1]}}) {
-		    last if (&{$proc}(\$value));
-		}
+		# Finally, let the toolkit converters do the conversion if
+		# the value is still a string (and does not have an alternate
+		# integer value).  This could generate a toolkit warning if
+		# the widget set does not provide a conversion from string
+		# format.  Most resources have these converters though because
+		# they are used for converting app-defaults files.
+		#
+		# The reason why we don't run potential numbers through the
+		# toolkit conversion is because a number is almost always
+		# an enumeration value.  Most converters don't handle the
+		# numeric value, but rather the symbolic name.  If we ran
+		# numbers through the toolkit conversion there's a good chance
+		# the conversion would fail.  Besides, if the value is already
+		# an integer it skips the relatively slow toolkit conversion
+		# process.
 
-		if (X::is_string($value)) {
-		    # finally, let the toolkit converters do the conversion
-
-		    $value = X::Toolkit::InArg::new($value, $info->[1], $info->[2], 0);
-		}
+		$value = X::Toolkit::InArg::new($value, $info->[1], $info->[2], 0);
 	    }
 	}
+
+	$resources->{$name} = $value;
+    }
+    else {
+
+	# Lastly, if the attribute is not a string and does not require
+	# conversion, the resource is just set directly.  This allows
+	# objects (i.e. blessed refs) returned from other X11 routines
+	# to be used directly.
 
 	$resources->{$name} = $value;
     }
@@ -213,10 +292,10 @@ sub build_resource_table {
 	    $pseudo_resources->{'name'} = $value
 	}
 	elsif ($res_name eq 'managed') {
-	    $pseudo_resources->{managed} = X::cvt_to_Boolean($value);
+	    $pseudo_resources->{'managed'} = X::cvt_to_Boolean($value);
 	}
 	elsif ($res_name eq 'mapped') {
-	    $pseudo_resources->{mapped} = X::cvt_to_Boolean($value);
+	    $pseudo_resources->{'mapped'} = X::cvt_to_Boolean($value);
 	}
 	elsif ($res_name eq 'xy') {
 	    my $pos = $value;
@@ -386,7 +465,7 @@ sub add_callback_set {
     if (defined $callbacks && defined %{$callbacks}) {
 	my($cb_name, $proc);
 	while (($cb_name, $proc) = each %{$callbacks}) {
-	    if (ref $proc eq "ARRAY") {
+	    if (ref $proc eq 'ARRAY') {
 		$self->priv_XtAddCallback($cb_name, $proc->[0],
 					  $call_data_registry{$type_name.','.$cb_name},
 					  $proc->[1]);
@@ -440,8 +519,8 @@ sub change {
     build_resource_table($type_name, $parent_type_name,
 			 \%resources, \%callbacks, \%pseudo_resources, @_);
 
-    if (exists $pseudo_resources{managed}) {
-	if ($pseudo_resources{managed}) {
+    if (exists $pseudo_resources{'managed'}) {
+	if ($pseudo_resources{'managed'}) {
 	    $self->Manage();
 	}
 	else {
@@ -449,11 +528,11 @@ sub change {
 	}
     }
 
-    if (exists $pseudo_resources{mapped}) {
+    if (exists $pseudo_resources{'mapped'}) {
 	if ($self->IsRealized()) {
 	    my $dpy = Display($self);
 	    my $win = Window($self);
-	    if ($pseudo_resources{mapped}) {
+	    if ($pseudo_resources{'mapped'}) {
 		X::MapWindow($dpy, $win);
 	    }
 	    else {
@@ -461,7 +540,7 @@ sub change {
 	    }
 	}
 	else {
-	    if ($pseudo_resources{mapped}) {
+	    if ($pseudo_resources{'mapped'}) {
 		$resources{'mappedWhenManaged'} = X::True;
 	    }
 	    else {
@@ -517,10 +596,10 @@ sub give {
 
     my $name = $pseudo_resources{'name'};
     if (!defined $name) {
-	$name = "an_".$type_name;
+	$name = 'an_'.$type_name;
     }
 
-    my $managed = $pseudo_resources{managed};
+    my $managed = $pseudo_resources{'managed'};
     if (!defined $managed) {
 	$managed = 1;
     }
@@ -545,7 +624,7 @@ sub give {
 	}
 	else {
 	    $child->add_callback_set($type_name, \%callbacks);
-	    $child->Manage() if ($managed);
+	    $child->Manage() if ($managed && $parent->XtIsWidget());
 	}
     }
 
@@ -647,9 +726,58 @@ sub handle {
 	$self->Realize();
     }
 
-    my $context = $self->ToApplicationContext();
-    $context->AppMainLoop();
+    my $context = $self->GetContext();
+    my $nesting_on_entry = $event_loop_nesting;
+    my $event;
+
+    ++$event_loop_nesting;
+
+    while ($event_loop_nesting > $nesting_on_entry) {
+	$event = $context->AppNextEvent;
+	X::Toolkit::DispatchEvent($event);
+    }
 }
+
+sub return_from_handler () {
+    --$event_loop_nesting;
+}
+
+# --------------------------------------------------------------------------------
+# $widget->set_inherited_resources(name => value, ...)
+#
+# This is totally different from the other set values functions.
+# set_inherited_resources will create an entry in the resource database
+# that applies below the current widget.  This only makes sense for
+# manager widgets, i.e. widgets with children.
+#
+# For example, this:
+#
+#   $form->set_inherited_resources('*foreground', 'white');
+#
+# will set the foreground of all the children of the form to white.
+#
+# NOTE:  Resources set with this routine only affect widgets at creation
+#        time.  Existing widgets will not be affected.
+
+sub set_inherited_resources {
+    my $w = shift;
+    my $db = X::Toolkit::Database($w->Display());
+
+    my($res, $val);
+
+    my $fullname = $w->FullName();
+
+    while (@_) {
+	$res = shift;
+	$val = shift;
+
+	if (defined($res) && defined($val)) {
+	    $res = $fullname.$res;
+	    X::XrmPutStringResource($db, $res, $val);
+	}
+    }
+}
+
 
 # ================================================================================
 # X Toolkit compatibility functions
@@ -664,7 +792,7 @@ sub XtAddCallback {
     my $type_name = Class($self)->name();
 
     if (exists $resource_registry{$type_name}{$cb_name} &&
-	$resource_registry{$type_name}{$cb_name}[1] eq "Callback")
+	$resource_registry{$type_name}{$cb_name}[1] eq 'Callback')
     {
 	$self->priv_XtAddCallback($cb_name, $proc,
 				  $call_data_registry{$type_name.','.$cb_name},

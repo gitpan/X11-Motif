@@ -30,7 +30,7 @@ BEGIN {
     X11::Toolkit::use_standard_aliases();
 }
 
-sub beta_version { 1 };
+sub beta_version { 2 };
 
 sub import {
     my $module = shift;
@@ -56,6 +56,11 @@ sub import {
 	}
 	elsif ($sym eq ':widgets') {
 	    export_pattern(\%X::Motif::, '^xm');
+	}
+	elsif ($sym eq ':private') {
+	    export_symbol(\%X11::Lib::, 'export_pattern');
+	    export_symbol(\%X11::Lib::, 'export_symbol');
+	    export_symbol(\%X11::Lib::, 'alias_trimmed_pattern');
 	}
 	else {
 	    export_symbol(\%X::Motif::, $sym);
@@ -108,8 +113,7 @@ $X::Toolkit::Widget::resource_hints{'VerticalDimension'} = 'u';
 
     xmLabelWidgetClass()->register('text' => ['labelString', 'labelType' => 'string'],
 				   'icon' => ['labelPixmap', 'labelType' => 'pixmap'],
-				   'font' => 'fontList',
-				   'fg' => 'foreground');
+				   'font' => 'fontList');
 
 	xmCascadeButtonWidgetClass()->register(@activate);
 
@@ -142,7 +146,8 @@ $X::Toolkit::Widget::resource_hints{'VerticalDimension'} = 'u';
 
 	    xmFileSelectionBoxWidgetClass()->register();
 
-	xmMessageBoxWidgetClass()->register();
+	xmMessageBoxWidgetClass()->register('message' => 'messageString',
+					    'alignment' => 'messageAlignment');
 
     xmDrawingAreaWidgetClass()->register();
 
@@ -176,6 +181,13 @@ $X::Toolkit::Widget::resource_hints{'VerticalDimension'} = 'u';
 	topLevelShellWidgetClass()->register();
 
 	    applicationShellWidgetClass()->register();
+
+    # ------------------------------------------------------------
+    # Custom Motif Extensions
+
+    xpFolderWidgetClass()->register();
+    xpStackWidgetClass()->register();
+    xpLinedAreaWidgetClass()->register();
 }
 
 sub create_menu {
@@ -224,6 +236,121 @@ sub create_option_menu {
     return ($opt, $rc);
 }
 
+sub create_popup_menu {
+    my $parent = shift;
+    my $type = shift;
+
+    my $shell = X::Toolkit::CreatePopupShell("a_menu_shell", xmMenuShellWidgetClass, $parent,
+					XmNwidth, 1,
+					XmNheight, 1);
+
+    my $rc = give $shell xmRowColumnWidgetClass,
+					-rowColumnType => XmMENU_POPUP,
+					-managed => X::False,
+					@_;
+
+    return $rc;
+}
+
+sub XmDIALOG_CHOICE () { 10 }
+
+my %dialog_style_names =
+    ( 'error' => X::Motif::XmDIALOG_ERROR,
+      'info' => X::Motif::XmDIALOG_INFORMATION,
+      'information' => X::Motif::XmDIALOG_INFORMATION,
+      'message' => X::Motif::XmDIALOG_MESSAGE,
+      'question' => X::Motif::XmDIALOG_QUESTION,
+      'warning' => X::Motif::XmDIALOG_WARNING,
+      'working' => X::Motif::XmDIALOG_WORKING,
+      'busy' => X::Motif::XmDIALOG_WORKING,
+      'choice' => X::Motif::XmDIALOG_CHOICE(),
+      'option' => X::Motif::XmDIALOG_CHOICE() );
+
+my @dialog_style_titles;
+    $dialog_style_titles[X::Motif::XmDIALOG_ERROR] = 'Error!';
+    $dialog_style_titles[X::Motif::XmDIALOG_INFORMATION] = 'Information';
+    $dialog_style_titles[X::Motif::XmDIALOG_MESSAGE] = 'Message';
+    $dialog_style_titles[X::Motif::XmDIALOG_QUESTION] = 'Confirm';
+    $dialog_style_titles[X::Motif::XmDIALOG_WARNING] = 'Warning!';
+    $dialog_style_titles[X::Motif::XmDIALOG_WORKING] = 'Working ...';
+    $dialog_style_titles[X::Motif::XmDIALOG_CHOICE()] = 'Choose';
+
+sub create_dialog {
+    my $parent = shift;
+    my $type = shift;
+
+    my @options = ();
+    my $style = X::Motif::XmDIALOG_MESSAGE;
+    my %show;
+    my $choices;
+    my $title;
+
+    my($res_name, $value);
+    my $num = scalar @_;
+    my $i = 0;
+
+    while ($i < $num) {
+	$res_name = $_[$i++];
+	$res_name =~ s|^-||;
+
+	$value = $_[$i++];
+
+	if ($res_name eq 'style' || $res_name eq 'type') {
+	    $style = $value;
+	}
+	elsif ($res_name eq 'choices') {
+	    $choices = $value;
+	}
+	elsif ($res_name eq 'title') {
+	    $title = $value;
+	}
+	elsif ($res_name eq 'ok' || $res_name eq 'cancel' || $res_name eq 'help') {
+	    if (ref $value eq 'ARRAY') {
+		push @options, $res_name.'LabelString' => $value->[0],
+			       $res_name.'Callback' => $value->[1];
+	    }
+	    else {
+		push @options, $res_name.'Callback' => $value;
+	    }
+	    $show{$res_name} = 1;
+	}
+	else {
+	    push @options, $res_name => $value;
+	}
+    }
+
+    if (X::is_string($style)) {
+	$style =~ s|^-||;
+	if (defined $dialog_style_names{$style}) {
+	    $style = $dialog_style_names{$style};
+	}
+    }
+
+    if (!defined $title) {
+	$title = $dialog_style_titles[$style];
+    }
+
+    my $shell = give $parent -DialogShell, -title => $title;
+    my $dialog;
+
+    if ($style eq X::Motif::XmDIALOG_CHOICE()) {
+	$dialog = give $shell $type, -dialogType => X::Motif::XmDIALOG_MESSAGE,
+				     -message => 'Not implemented';
+    }
+    else {
+	$dialog = give $shell $type, -dialogType => $style, @options;
+    }
+
+    foreach ('OK', 'Cancel', 'Help') {
+	if (!defined $show{lc $_}) {
+	    my $child = X::Toolkit::search_from_parent($dialog, $_);
+	    $child->UnmanageChild() if (defined $child);
+	}
+    }
+
+    $dialog;
+}
+
 # ================================================================================
 # Widget Subresources
 #
@@ -233,7 +360,7 @@ sub create_option_menu {
 # type encountered during normal resource registration is remembered so even
 # custom Motif types should be available.  I haven't discovered a portable
 # way to determine the size of a type used solely as a subresource -- but
-# hopefully we'll never have to.
+# hopefully we'll never have to. '
 
 xmTextWidgetClass()->register_subresource('PendingDelete', 'pendingDelete', 'Boolean');
 xmTextWidgetClass()->register_subresource('SelectThreshold', 'selectThreshold', 'Int');
@@ -272,13 +399,17 @@ xmTextWidgetClass()->register_subresource('Scroll', 'scrollVertical', 'Boolean')
     xmListWidgetClass()->register_alias(-list);
 
     xmFrameWidgetClass()->register_alias(-frame);
+    xmPanedWindowWidgetClass()->register_alias(-pane);
     xmFormWidgetClass()->register_alias(-form);
     xmBulletinBoardWidgetClass()->register_alias(-bulletinboard);
     xmRowColumnWidgetClass()->register_alias(-rowcolumn);
     xmRowColumnWidgetClass()->register_alias(-menubar, XmNrowColumnType, XmMENU_BAR);
     xmRowColumnWidgetClass()->register_alias(-menu, \&create_menu);
     xmRowColumnWidgetClass()->register_alias(-optionmenu, \&create_option_menu);
+    xmRowColumnWidgetClass()->register_alias(-popupmenu, \&create_popup_menu);
     xmScrolledWindowWidgetClass()->register_alias(-scrolledwindow);
+
+    xmMessageBoxWidgetClass()->register_alias(-dialog, \&create_dialog);
 
     xmDrawingAreaWidgetClass()->register_alias(-drawingarea);
     xmDrawingAreaWidgetClass()->register_alias(-canvas);
@@ -449,11 +580,11 @@ sub XmCreateScrollBar {
 }
 
 sub XmCreateScrolledList {
-    return generic_XmCreate(\&priv_XmCreateScrolledList, 'XmScrolledList', @_);
+    return generic_XmCreate(\&priv_XmCreateScrolledList, 'XmList', @_);
 }
 
 sub XmCreateScrolledText {
-    return generic_XmCreate(\&priv_XmCreateScrolledText, 'XmScrolledText', @_);
+    return generic_XmCreate(\&priv_XmCreateScrolledText, 'XmText', @_);
 }
 
 sub XmCreateScrolledWindow {
@@ -579,10 +710,24 @@ sub cvt_to_XmString {
     $$value = new X::Motif::String($$value);
 }
 
+sub cvt_to_UserData {
+    my $value = shift;
+
+    $$value = new X::shared_perl_value($$value);
+}
+
 X::Toolkit::Widget::register_converter('LabelType', \&cvt_to_XmLabelType);
 X::Toolkit::Widget::register_converter('HorizontalPosition', \&cvt_to_HorizontalPosition);
 X::Toolkit::Widget::register_converter('VerticalPosition', \&cvt_to_VerticalPosition);
 X::Toolkit::Widget::register_converter('XmString', \&cvt_to_XmString);
+
+# It isn't very satisfying to register a class converter and then
+# require the resource *type* to be converted.  Either class conversion
+# should be monitored or the forcing/registration scheme should be
+# re-thought.  FIXME
+
+X::Toolkit::Widget::conversion_is_mandatory('Pointer');
+X::Toolkit::Widget::register_class_converter('UserData', \&cvt_to_UserData);
 
 # ================================================================================
 # Manager Widget Hooks
@@ -665,15 +810,17 @@ $X::Toolkit::Widget::constraint_handlers{'XmForm'} = \&handle_custom_form_constr
 
 $X::Toolkit::Widget::call_data_registry{'XmPushButton,activateCallback'} = \"X::Motif::PushButtonCallData";
 
-$X::Toolkit::Widget::call_data_registry{'XmTextField,losingFocusCallback'} = \"X::Motif::TextVerifyCallData";
-$X::Toolkit::Widget::call_data_registry{'XmTextField,modifyVerifyCallback'} = \"X::Motif::TextVerifyCallData";
-$X::Toolkit::Widget::call_data_registry{'XmTextField,motionVerifyCallback'} = \"X::Motif::TextVerifyCallData";
+my $text_verify_call_data = "X::Motif::TextVerifyCallData";
+$X::Toolkit::Widget::call_data_registry{'XmTextField,losingFocusCallback'} = \$text_verify_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmTextField,modifyVerifyCallback'} = \$text_verify_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmTextField,motionVerifyCallback'} = \$text_verify_call_data;
 
-$X::Toolkit::Widget::call_data_registry{'XmList,singleSelectionCallback'} = \"X::Motif::ListCallData";
-$X::Toolkit::Widget::call_data_registry{'XmList,multipleSelectionCallback'} = \"X::Motif::ListCallData";
-$X::Toolkit::Widget::call_data_registry{'XmList,extendedSelectionCallback'} = \"X::Motif::ListCallData";
-$X::Toolkit::Widget::call_data_registry{'XmList,browseSelectionCallback'} = \"X::Motif::ListCallData";
-$X::Toolkit::Widget::call_data_registry{'XmList,defaultActionCallback'} = \"X::Motif::ListCallData";
+my $list_call_data = "X::Motif::ListCallData";
+$X::Toolkit::Widget::call_data_registry{'XmList,singleSelectionCallback'} = \$list_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmList,multipleSelectionCallback'} = \$list_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmList,extendedSelectionCallback'} = \$list_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmList,browseSelectionCallback'} = \$list_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmList,defaultActionCallback'} = \$list_call_data;
 
 package X::Motif::AnyCallData;
 

@@ -76,6 +76,8 @@ char *XEventPtr_Package(int id) {
 	     return "X::Event::MotionEvent";
 
 	case ButtonPress:
+	    return "X::Event::ButtonPressedEvent";
+
 	case ButtonRelease:
 	    return "X::Event::ButtonEvent";
 

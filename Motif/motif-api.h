@@ -30,6 +30,15 @@
 #include <Xm/TextF.h>
 #include <Xm/ToggleB.h>
 
+#include "XpFolder.h"
+#include "XpStack.h"
+#include "XpLinedArea.h"
+
+#ifdef WANT_XBAE
+#include <Xbae/Matrix.h>
+#include <Xbae/Caption.h>
+#endif
+
 extern char *XmString_Package;
 extern char *XmAnyCallbackStructPtr_Package;
 extern char *XmArrowButtonCallbackStructPtr_Package;
