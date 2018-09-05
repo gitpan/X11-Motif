@@ -7,8 +7,15 @@
 
 #undef DEBUG_XT_ARG_LISTS
 
+#ifndef PL_argvgv
+# define PL_argvgv argvgv
+#endif
+
 Widget UxTopLevel = 0;
 XtAppContext UxAppContext = 0;
+int toplevel_has_custom_visual = 0;
+
+#define EXTRA_ARG_LIST_ROOM 3
 
 /* BUGS in the resource system:
 
@@ -18,6 +25,84 @@ XtAppContext UxAppContext = 0;
       and the widget registry should be able to over-ride the default.
 
 */
+
+AV *sv_to_av(SV *sv)
+{
+    if (SvROK(sv)) {
+	sv = SvRV(sv);
+    }
+    return (SvTYPE(sv) == SVt_PVAV) ? (AV *)sv : 0;
+}
+
+AV *get_raw_image_row(AV *col_av, int y)
+{
+    SV **sv = av_fetch(col_av, y, FALSE);
+    return sv ? sv_to_av(*sv) : 0;
+}
+
+Pixel compute_raw_image_pixel(Display *dpy, Colormap cmap,
+			      AV *row_av, int x,
+			      double min, double max,
+			      XColor color[], int maxcolor)
+{
+    double v = 0.0;
+    int i;
+
+    if (row_av) {
+	SV **sv = av_fetch(row_av, x, FALSE);
+	v = sv ? SvNV(*sv) : 0.0;
+    }
+
+    i = maxcolor * ((v - min) / (max - min)) + 0.5;
+
+    if (i > maxcolor) {
+	i = maxcolor;
+    }
+    if (i < 0) {
+	i = 0;
+    }
+
+    if (color[i].flags == 0) {
+	color[i].flags = DoRed|DoGreen|DoBlue;
+	color[i].red = color[i].green = color[i].blue = 65535.0 / maxcolor * i;
+	if (!XAllocColor(dpy, cmap, &color[i])) {
+	    color[i].pixel = 0;
+	}
+    }
+
+    /* printf("[%g : %g : %g] -> %06x\n", min, v, max, color[i].pixel); */
+    return color[i].pixel;
+}
+
+void convert_raw_image_row(Display *dpy, Colormap cmap, XImage *image,
+			   AV *col_av, int y, int width,
+			   double min, double max,
+			   XColor color[], int maxcolor)
+{
+    AV *row_av = get_raw_image_row(col_av, y);
+    int x;
+
+    for (x = 0; x < width; ++x) {
+	XPutPixel(image, x, y,
+		  compute_raw_image_pixel(dpy, cmap, row_av, x,
+			      min, max, color, maxcolor));
+    }
+}
+
+AV *get_raw_image_info(SV *sv, int *width, int *height)
+{
+    AV *col_av = sv_to_av(sv);
+    if (col_av) {
+	AV *row_av = get_raw_image_row(col_av, 0);
+	if (row_av) {
+	    *width = AvFILL(row_av) + 1;
+	    *height = AvFILL(col_av) + 1;
+	    return col_av;
+	}
+    }
+    return 0;
+}
+
 
 /* The Widget may not be an instance of the given WidgetClass.  This is common
    in a CreateWidget call because the widget being created doesn't exist yet.
@@ -95,7 +180,7 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 	    croak("arg_list must be formed of attribute => value pairs");
 	}
 
-	arg_list = malloc((items >> 1) * sizeof(Arg));
+	arg_list = malloc((EXTRA_ARG_LIST_ROOM + (items >> 1)) * sizeof(Arg));
 
 	while (i < max) {
 	    char *name = SvPV(sp[i], na);
@@ -122,7 +207,7 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 			   ignored. */
 
 #ifdef DEBUG_XT_ARG_LISTS
-			printf("#1.2: arg[%d] = <'%s', IGNORING!>\n", arg_count, name);
+			printf("#1.2: arg[%d] = <'%s', \007IGNORING!>\n", arg_count, name);
 #endif
 		    }
 		}
@@ -138,7 +223,7 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 		       types which Perl doesn't fully know about.
 
 		       One check is made for "shared" perl values.  These are
-		       plain SV pointers (or boxed unsigned integers) that get
+		       plain SV pointers (or boxed small integers) that get
 		       stashed in a widget.  Special care must be taken to
 		       increment the ref count and schedule a destroy CB to
 		       decrement it later.
@@ -146,13 +231,16 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 		       The boxed integers significantly improve performance
 		       and memory usage because the values are stashed
 		       directly in the widget and will allow the SV to be
-		       garbage collected. */
+		       garbage collected.  Anything that fetches that value
+		       of a "shared" value must be prepared to handle boxed
+		       integers.  (See the Motif userData resource for some
+		       example code.) */
 
 		    char *obj_type = sv_reftype(obj, TRUE);
 		    if (obj_type && strEQ(obj_type, "X::shared_perl_value")) {
 			SV *sv = (SV *)SvIV(obj);
 			if ((int)sv & 1) {
-			    value = (XtArgVal)sv;
+			    value = (XtArgVal)(sv);
 #ifdef DEBUG_XT_ARG_LISTS
 			    printf("#2.1: arg[%d] = <'%s', 0x%08x [BOXED]>\n", arg_count, name, value);
 #endif
@@ -160,7 +248,7 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 			else {
 			    value = (XtArgVal)SvREFCNT_inc(sv);
 #ifdef DEBUG_XT_ARG_LISTS
-			    printf("#2.2: arg[%d] = <'%s', 0x%08x [SV *]>\n", arg_count, name, value);
+			    printf("#2.2: arg[%d] = <'%s', 0x%08x [\007SV *]>\n", arg_count, name, value);
 #endif
 
 			    /* FIXME -- DESTROY CB MUST BE SCHEDULED!  This is
@@ -201,7 +289,7 @@ Cardinal xt_build_input_arg_list(Widget w, WidgetClass wc, ArgList *arg_list_out
 		   should ensure that this never happens. */
 
 #ifdef DEBUG_XT_ARG_LISTS
-		printf("#4: arg[%d] = <'%s', IGNORING!>\n", arg_count, name);
+		printf("#4: arg[%d] = <'%s', \007IGNORING!>\n", arg_count, name);
 #endif
 	    }
 
@@ -461,27 +549,185 @@ static void run_and_destroy_perl_callback(Widget widget, XtPointer client, XtPoi
     destroy_perl_callback(widget, client, call);
 }
 
+enum Color_Model { CM_MAX_COLORS, CM_MIN_COLORS, CM_DEFAULT_COLORS, CM_GREY_COLORS };
 
+static Widget init_toolkit(char *app_class, char *display_name,
+			   enum Color_Model color_model, int writable_colormap)
+{
+    static int argc = 1;
+    static char **argv = 0;
+    char **argv_copy;
+    Display *dpy;
+    int scr;
+    Cardinal n = 0;
+    Arg x_arg[10];
+    Widget top;
+
+    if (UxAppContext == 0) {
+	XtToolkitInitialize();
+	UxAppContext = XtCreateApplicationContext();
+    }
+
+    dpy = XOpenDisplay(display_name);
+
+    if (dpy == 0) {
+	return 0;
+    }
+
+    scr = DefaultScreen(dpy);
+    XtSetArg(x_arg[n], XtNscreen, ScreenOfDisplay(dpy, scr));		++n;
+
+    if (argv == 0) {
+	AV *av = GvAV(PL_argvgv);
+	if (av) {
+	    argc += AvFILL(av) + 1;
+	}
+	New(0, argv, argc + 1, char *);
+	if (av) {
+	    int i = AvFILL(av);
+	    STRLEN len;
+	    SV **sv; char *p; char *q;
+	    argv[0] = "perl"; /* FIXME -- need to grab $0 from perl */
+	    while (i >= 0) {
+		if ((sv = av_fetch(av, i, 0)) != 0) {
+		    p = SvPV(*sv, len); ++len;
+		    New(0, q, len, char);
+		    Move(p, q, len, char);
+		    argv[i + 1] = q;
+		}
+		--i;
+	    }
+	}
+	else {
+	    argv[0] = "perl";
+	}
+	argv[argc] = 0;
+    }
+
+    New(0, argv_copy, argc + 1, char *);
+    Move(argv, argv_copy, argc + 1, char *);
+
+    XtSetArg(x_arg[n], XtNargc, argc);					++n;
+    XtSetArg(x_arg[n], XtNargv, argv);					++n;
+
+    XtDisplayInitialize(UxAppContext, dpy, argv[0], app_class, 0, 0, &argc, argv_copy);
+
+    if (CM_DEFAULT_COLORS != color_model) {
+	XVisualInfo vis_template;
+	XVisualInfo *vis_list;
+	int vis_count;
+
+	vis_template.screen = scr;
+	vis_list = XGetVisualInfo(dpy, VisualScreenMask, &vis_template, &vis_count);
+
+	if (vis_count > 0) {
+	    Visual *def_vis = DefaultVisual(dpy, scr);
+	    XVisualInfo *best = 0;
+	    int i;
+
+	    for (i = 0; i < vis_count; ++i) {
+		if (writable_colormap == (vis_list[i].class & 1)) {
+		    switch (color_model) {
+			case CM_MAX_COLORS:
+			    if (GrayScale < vis_list[i].class &&
+				(best == 0 || vis_list[i].depth > best->depth))
+			    {
+				best = &vis_list[i];
+			    }
+			    break;
+			case CM_MIN_COLORS:
+			    if (GrayScale < vis_list[i].class &&
+				(best == 0 || vis_list[i].depth < best->depth))
+			    {
+				best = &vis_list[i];
+			    }
+			    break;
+			case CM_GREY_COLORS:
+			    if (GrayScale >= vis_list[i].class &&
+				(best == 0 || vis_list[i].depth > best->depth))
+			    {
+				best = &vis_list[i];
+			    }
+			    break;
+			default:
+			    break;
+		    }
+		}
+	    }
+
+	    if (best && XVisualIDFromVisual(best->visual) != XVisualIDFromVisual(def_vis)) {
+		Colormap cmap = XCreateColormap(dpy, RootWindow(dpy, scr), best->visual, AllocNone);
+
+		XtSetArg(x_arg[n], XtNdepth, best->depth);		++n;
+		XtSetArg(x_arg[n], XtNvisual, best->visual);		++n;
+		XtSetArg(x_arg[n], XtNcolormap, cmap);			++n;
+
+		/* printf("toplevel:\n");
+		printf(" depth = %d\n", best->depth);
+		printf(" visual = 0x%x\n", best->visualid);
+		printf(" colormap = 0x%x\n", cmap); */
+
+		toplevel_has_custom_visual = 1;
+	    }
+
+	    XFree(vis_list);
+	}
+    }
+
+    top = XtAppCreateShell(argv[0], app_class, applicationShellWidgetClass, dpy, x_arg, n);
+
+    if (UxTopLevel == 0) {
+	UxTopLevel = top;
+    }
+
+    return top;
+}
 
 
 MODULE = X11::Toolkit	PACKAGE = X::Toolkit
 
 PROTOTYPES: ENABLE
 
+int
+toplevel_has_custom_visual()
+	CODE:
+	    RETVAL = toplevel_has_custom_visual;
+	OUTPUT:
+	    RETVAL
+
 void
-initialize(app_class)
+priv_initialize(app_class, display_name, colors, writable_colormap)
 	char *		app_class
+	char *		display_name
+	char *		colors
+	int		writable_colormap
 	PREINIT:
-	    int argc = 0;
-	    char **argv = 0;
+	    enum Color_Model color_model = CM_DEFAULT_COLORS;
+	    Widget top;
 	PPCODE:
-	    UxTopLevel = XtAppInitialize(&UxAppContext, app_class, 0, 0, &argc, argv, 0, 0, 0);
+	    if (*colors == '-') ++colors;
+	    if (*colors == 'm') {
+		++colors;
+		if (*colors == 'a') {
+		    color_model= CM_MAX_COLORS;
+		}
+		else if (*colors == 'i') {
+		    color_model= CM_MIN_COLORS;
+		}
+	    }
+	    else if (*colors == 'g') {
+		color_model= CM_GREY_COLORS;
+	    }
+	    if (display_name && *display_name == 0) {
+		display_name = 0;
+	    }
+	    top = init_toolkit(app_class, display_name, color_model, writable_colormap);
 	    if (GIMME == G_ARRAY) {
-		XPUSHs(sv_setref_pv(sv_newmortal(), Widget_Package, (void *)UxTopLevel));
+		XPUSHs(sv_setref_pv(sv_newmortal(), Widget_Package, (void *)top));
 		XPUSHs(sv_setref_pv(sv_newmortal(), XtAppContext_Package, (void *)UxAppContext));
 	    }
 	    else {
-		XPUSHs(sv_setref_pv(sv_newmortal(), Widget_Package, (void *)UxTopLevel));
+		XPUSHs(sv_setref_pv(sv_newmortal(), Widget_Package, (void *)top));
 	    }
 
 void
@@ -505,25 +751,29 @@ context()
 		XPUSHs(sv_setref_pv(sv_newmortal(), XtAppContext_Package, (void *)UxAppContext));
 	    }
 
-Widget
+void
 search_from_toplevel(name)
 	char *		name
-	CODE:
+	PREINIT:
+	    Widget r;
+	PPCODE:
 	    if (!UxTopLevel) croak("no toplevel");
-	    RETVAL = XtNameToWidget(UxTopLevel, name);
-	    if (!RETVAL) croak("couldn't find a widget with that name");
-	OUTPUT:
-	    RETVAL
+	    r = XtNameToWidget(UxTopLevel, name);
+	    if (r) {
+		XPUSHs(sv_setref_pv(sv_newmortal(), Widget_Package, (void *)r));
+	    }
 
-Widget
+void
 search_from_parent(parent, name)
-	Widget	parent
+	Widget		parent
 	char *		name
-	CODE:
-	    RETVAL = XtNameToWidget(parent, name);
-	    if (!RETVAL) croak("couldn't find a widget with that name");
-	OUTPUT:
-	    RETVAL
+	PREINIT:
+	    Widget r;
+	PPCODE:
+	    r = XtNameToWidget(parent, name);
+	    if (r) {
+		XPUSHs(sv_setref_pv(sv_newmortal(), Widget_Package, (void *)r));
+	    }
 
 
 
@@ -813,10 +1063,121 @@ void
 XtUnmapWidget(widget)
 	Widget		widget
 
+void
+XtManageChild(child)
+	Widget			child
+	CODE:
+	    if (child && XtParent(child)) {
+		XtManageChild(child);
+	    }
 
-		 
+void
+XtUnmanageChild(child)
+	Widget			child
+	CODE:
+	    if (child && XtParent(child)) {
+		XtUnmanageChild(child);
+	    }
+
 
 MODULE = X11::Toolkit	PACKAGE = X::Toolkit
+
+Widget
+priv_XtCreatePopupShell(name, widgetClass, parent, ...)
+	char *			name
+	WidgetClass		widgetClass
+	Widget			parent
+	PREINIT:
+	    ArgList x_arg = 0;
+	    Cardinal n = 0;
+	CODE:
+	    n = xt_build_input_arg_list(parent, widgetClass, &x_arg, &ST(3), items - 3);
+	    if (toplevel_has_custom_visual) {
+		Widget shell = parent;
+		int depth;
+		Visual *visual;
+		Colormap cmap;
+
+		while (shell) {
+		    if (XtIsApplicationShell(shell)) {
+			XtVaGetValues(shell,
+					XtNdepth, &depth,
+					XtNvisual, &visual,
+					XtNcolormap, &cmap, 0);
+			XtSetArg(x_arg[n], XtNdepth, depth);	++n;
+			XtSetArg(x_arg[n], XtNvisual, visual);	++n;
+			XtSetArg(x_arg[n], XtNcolormap, cmap);	++n;
+			break;
+		    }
+		    shell = XtParent(shell);
+		}
+	    }
+	    RETVAL = XtCreatePopupShell(name, widgetClass, parent, x_arg, n);
+	    if (x_arg) free(x_arg);
+	OUTPUT:
+	    RETVAL
+
+XImage *
+CreateGrayImage(w, sv, max, ncolors = 32, min = 0.0)
+	Widget			w
+	SV *			sv
+	double			max
+	int			ncolors
+	double			min
+	PREINIT:
+	    Widget shell;
+	    Visual *visual;
+	    int depth;
+	    Colormap cmap;
+	    char *data;
+	    int width, height, y;
+	    AV *av;
+	    XColor color[256];
+	CODE:
+   /* also need CreateColorImage() FIXME */
+
+   /* this code forgets about the color table.  X will re-use the
+   allocated colors because they were allocated read-only, but
+   it's still much faster to remember previous allocations.  The
+   major trouble is that allocations might not make any sense
+   if the min/max/ncolors values change a lot. FIXME */
+
+   /* not easy to use PutPixel on the returned image -- the user
+   has to figure out colormaps and all that stuff.  need a
+   PutGrayPixel() interface to hide the details. FIXME */
+
+	    if (ncolors > 256) {
+		ncolors = 256;
+	    }
+	    else if (ncolors < 2) {
+		ncolors = 2;
+	    }
+	    if ((av = get_raw_image_info(sv, &width, &height)) == 0) {
+		croak("image data must be an array ref");
+	    }
+	    shell = w;
+	    while (!XtIsShell(shell)) {
+		shell = XtParent(shell);
+	    }
+	    XtVaGetValues(shell, XtNvisual, &visual,
+			         XtNdepth, &depth,
+				 XtNcolormap, &cmap, 0);
+	    data = XtMalloc(4 * width * height);
+	    RETVAL = XCreateImage(XtDisplay(w), visual, depth,
+				  ZPixmap, 0, data, width, height,
+				  32, 4 * width);
+	    for (y = 0; y < ncolors; ++y) {
+		color[y].flags = 0;
+	    }
+	    --ncolors;
+	    for (y = 0; y < height; ++y) {
+		convert_raw_image_row(XtDisplay(w), cmap, RETVAL,
+				      av, y, width, min, max,
+				      color, ncolors);
+	    }
+	OUTPUT:
+	    RETVAL
+
 
 # ----------------------------------------------------------------------
 # The next section was derived from an automatically generated XS
@@ -880,21 +1241,6 @@ priv_XtCreateManagedWidget(name, widget_class, parent, ...)
 	CODE:
 	    arg_list_len = xt_build_input_arg_list(parent, widget_class, &arg_list, &ST(3), items - 3);
 	    RETVAL = XtCreateManagedWidget(name, widget_class, parent, arg_list, arg_list_len);
-	    if (arg_list) free(arg_list);
-	OUTPUT:
-	    RETVAL
-
-Widget
-priv_XtCreatePopupShell(name, widgetClass, parent, ...)
-	char *			name
-	WidgetClass		widgetClass
-	Widget			parent
-	PREINIT:
-	    ArgList arg_list = 0;
-	    Cardinal arg_list_len = 0;
-	CODE:
-	    arg_list_len = xt_build_input_arg_list(parent, widgetClass, &arg_list, &ST(3), items - 3);
-	    RETVAL = XtCreatePopupShell(name, widgetClass, parent, arg_list, arg_list_len);
 	    if (arg_list) free(arg_list);
 	OUTPUT:
 	    RETVAL
@@ -1390,10 +1736,6 @@ XtMakeResizeRequest(widget, width, height, width_return, height_return)
 	Dimension *		height_return
 
 void
-XtManageChild(child)
-	Widget			child
-
-void
 XtMenuPopupAction(widget, event, params, num_params)
 	Widget			widget
 	XEvent *		event
@@ -1594,10 +1936,6 @@ XtUngrabPointer(widget, time)
 void
 XtUninstallTranslations(widget)
 	Widget			widget
-
-void
-XtUnmanageChild(child)
-	Widget			child
 
 XtAppContext
 XtWidgetToApplicationContext(widget)
@@ -1959,11 +2297,12 @@ new(class_name, value)
 	char *		class_name
 	SV *		value
 	PPCODE:
-	    if (SvIOK(value) && (unsigned int)SvIV(value) < PERL_INT_MAX) {
-		/* Any integer >= 0 and < PERL_INT_MAX can be "boxed" or marked
-		   as a non-pointer.  This is a very useful optimization because it
-		   means that the SV itself does not need to be stored or garbage
-		   collected later. */
+	    if (SvIOK(value) && SvIV(value) >= -16384 && SvIV(value) <= 16383) {
+		/* A small integer can be "boxed" or marked as a non-pointer.
+		   This is a very useful optimization because it means that the
+		   SV itself does not need to be stored or garbage collected later.
+		   The range for the small integer is chosen conservatively so
+		   that it fits within a 16-bit quantity. */
 
 		XPUSHs(sv_setref_iv(sv_newmortal(), "X::shared_perl_value", (SvIV(value) << 1) | 1));
 	    }
@@ -2009,4 +2348,5 @@ BOOT:
     register_resource_converter_by_type("Visual",	"X::Visual", 0);
 
     register_resource_converter_by_type("Widget",	"X::Toolkit::Widget", 0);
+    register_resource_converter_by_type("MenuWidget",	"X::Toolkit::Widget", 0);
     register_resource_converter_by_type("WidgetClass",  "X::Toolkit::WidgetClass", 0);

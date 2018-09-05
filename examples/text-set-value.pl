@@ -1,6 +1,6 @@
 #!/ford/thishost/unix/div/ap/bin/perl -w
 
-use blib;
+#use blib;
 
 use strict;
 use X11::Motif;
@@ -10,7 +10,7 @@ my $toplevel = X::Toolkit::initialize("Example");
 my $form = give $toplevel -Form;
 
 my $label = give $form -Button, -text => "label: ", -command => \&do_set_field;
-my $field = give $form -Field;
+my $field = give $form -Field, -fontList => '-*-times-medium-r-normal-*-*-100-*-*-p-*-iso8859-1';
 
 arrange $form -fill => 'xy', -left => [ $label, $field ];
 

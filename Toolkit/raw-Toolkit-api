@@ -60,21 +60,6 @@ priv_XtCreateManagedWidget(name, widget_class, parent, ...)
 	    RETVAL
 
 Widget
-priv_XtCreatePopupShell(name, widgetClass, parent, ...)
-	char *			name
-	WidgetClass		widgetClass
-	Widget			parent
-	PREINIT:
-	    ArgList arg_list = 0;
-	    Cardinal arg_list_len = 0;
-	CODE:
-	    arg_list_len = xt_build_input_arg_list(parent, widgetClass, &arg_list, &ST(3), items - 3);
-	    RETVAL = XtCreatePopupShell(name, widgetClass, parent, arg_list, arg_list_len);
-	    if (arg_list) free(arg_list);
-	OUTPUT:
-	    RETVAL
-
-Widget
 priv_XtCreateWidget(name, widget_class, parent, ...)
 	char *			name
 	WidgetClass		widget_class
@@ -565,10 +550,6 @@ XtMakeResizeRequest(widget, width, height, width_return, height_return)
 	Dimension *		height_return
 
 void
-XtManageChild(child)
-	Widget			child
-
-void
 XtMenuPopupAction(widget, event, params, num_params)
 	Widget			widget
 	XEvent *		event
@@ -769,10 +750,6 @@ XtUngrabPointer(widget, time)
 void
 XtUninstallTranslations(widget)
 	Widget			widget
-
-void
-XtUnmanageChild(child)
-	Widget			child
 
 XtAppContext
 XtWidgetToApplicationContext(widget)

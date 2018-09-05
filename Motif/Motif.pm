@@ -385,7 +385,9 @@ xmTextWidgetClass()->register_subresource('Scroll', 'scrollVertical', 'Boolean')
 # Register the widgets under their simple names, e.g.  label, button, form --
 # this should probably be done as an import statement.
 
-    xmLabelWidgetClass()->register_alias(-label, 'alignment', XmALIGNMENT_BEGINNING);
+    # This is too surprising wrt to resources, so I've taken it out.
+    #xmLabelWidgetClass()->register_alias(-label, 'alignment', XmALIGNMENT_BEGINNING);
+    xmLabelWidgetClass()->register_alias(-label);
     xmPushButtonWidgetClass()->register_alias(-button);
     xmToggleButtonWidgetClass()->register_alias(-toggle);
 
@@ -418,6 +420,10 @@ xmTextWidgetClass()->register_subresource('Scroll', 'scrollVertical', 'Boolean')
     xmMenuShellWidgetClass()->register_alias(-menushell);
     topLevelShellWidgetClass()->register_alias(-toplevel);
     transientShellWidgetClass()->register_alias(-transient);
+
+    xpFolderWidgetClass()->register_alias(-folder);
+    xpStackWidgetClass()->register_alias(-stack);
+    xpLinedAreaWidgetClass()->register_alias(-linedarea);
 
 # ================================================================================
 # Motif convenience routines
@@ -729,6 +735,76 @@ X::Toolkit::Widget::register_converter('XmString', \&cvt_to_XmString);
 X::Toolkit::Widget::conversion_is_mandatory('Pointer');
 X::Toolkit::Widget::register_class_converter('UserData', \&cvt_to_UserData);
 
+# --------------------------------------------------------------------------------
+# This example extends the TextField widget with a synthetic resource that
+# provides "secret" input.  This is the classic password input technique
+# that echos a '*' for every character typed in.  The -text resource will
+# return a string of '*' characters.  The -secret resource will return the
+# actual internal value.  Setting the -secret resource will activate the
+# special behavior.
+
+$X::Toolkit::Widget::synthetic_resource_registry{'XmTextField'}{'secret'} = [ \&synth_set_tf_secret,
+									      \&synth_get_tf_secret ];
+
+my %secret_tf;
+
+sub synth_set_tf_secret {
+    my($self, $value) = @_;
+    my $id = $self->ID;
+
+    if (!defined $secret_tf{$id}) {
+	my $secret_value = '';
+	$secret_tf{$id} = \$secret_value;
+	$self->AddCallback(X::Motif::XmNmodifyVerifyCallback, \&do_secret_tf_input, \$secret_value);
+	$self->AddCallback(X::Motif::XmNdestroyCallback, \&do_destroy_secret_tf);
+    }
+}
+
+sub do_secret_tf_input {
+    my($w, $client, $call) = @_;
+    my $change = $call->text;
+
+    if (defined $change) {
+	substr($$client, $call->start_pos, $call->end_pos - $call->start_pos) = $change;
+	$change =~ s/./*/g;
+	$call->change_text($change);
+    }
+    else {
+	substr($$client, $call->start_pos, $call->end_pos - $call->start_pos) = '';
+    }
+}
+
+sub do_destroy_secret_tf {
+    my($self, $client, $call) = @_;
+    delete $secret_tf{$self->ID};
+}
+
+sub synth_get_tf_secret {
+    my($self) = @_;
+    my $t = $secret_tf{$self->ID};
+    if (defined $t) {
+	$$t;
+    }
+}
+
+# --------------------------------------------------------------------------------
+# Motif list selections are poorly designed -- they use plain C arrays with
+# an external item count. This synthetic resource fixes that problem.
+
+$X::Toolkit::Widget::synthetic_resource_registry{'XmList'}{'selection'} = [ \&synth_set_list_selection,
+									    \&synth_get_list_selection ];
+
+sub synth_set_list_selection {
+    my($self, $value) = @_;
+}
+
+sub synth_get_list_selection {
+    my($self) = @_;
+    my($items, $count) = query $self -selectedItems, -selectedItemCount;
+
+    _internal_convert_XmStringTable($items, $count);
+}
+
 # ================================================================================
 # Manager Widget Hooks
 #
@@ -814,6 +890,10 @@ my $text_verify_call_data = "X::Motif::TextVerifyCallData";
 $X::Toolkit::Widget::call_data_registry{'XmTextField,losingFocusCallback'} = \$text_verify_call_data;
 $X::Toolkit::Widget::call_data_registry{'XmTextField,modifyVerifyCallback'} = \$text_verify_call_data;
 $X::Toolkit::Widget::call_data_registry{'XmTextField,motionVerifyCallback'} = \$text_verify_call_data;
+
+$X::Toolkit::Widget::call_data_registry{'XmText,losingFocusCallback'} = \$text_verify_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmText,modifyVerifyCallback'} = \$text_verify_call_data;
+$X::Toolkit::Widget::call_data_registry{'XmText,motionVerifyCallback'} = \$text_verify_call_data;
 
 my $list_call_data = "X::Motif::ListCallData";
 $X::Toolkit::Widget::call_data_registry{'XmList,singleSelectionCallback'} = \$list_call_data;

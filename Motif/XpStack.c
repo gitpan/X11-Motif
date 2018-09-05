@@ -368,6 +368,30 @@ static XpStackWidget XpStackWidgetCast(Widget w)
     return(0);
 }
 
+static void ConstraintInitialize(Widget req, Widget new,
+				 ArgList args, Cardinal *num_args)
+{
+    XpStackConstraint new_c = (XpStackConstraint)new->core.constraints;
+
+    if (new_c->xpStack.layer_name) {
+	new_c->xpStack.layer_name = XtNewString(new_c->xpStack.layer_name);
+    }
+}
+
+static Boolean ConstraintSetValues(Widget old, Widget req, Widget new,
+				   ArgList args, Cardinal *num_args)
+{
+    XpStackConstraint new_c = (XpStackConstraint)new->core.constraints;
+    XpStackConstraint old_c = (XpStackConstraint)old->core.constraints;
+
+    if (new_c->xpStack.layer_name != old_c->xpStack.layer_name) {
+	if (old_c->xpStack.layer_name) {
+	    XtFree(old_c->xpStack.layer_name);
+	}
+	new_c->xpStack.layer_name = XtNewString(new_c->xpStack.layer_name);
+    }
+}
+
 int XpStackNumChildren(Widget w)
 {
     XpStackWidget self = XpStackWidgetCast(w);
@@ -421,7 +445,7 @@ void XpStackGotoWidget(Widget w, int i)
     }
 }
 
-void XpStackSetActiveChild(Widget w, int i)
+void XpStackSetActiveWidget(Widget w, int i)
 {
     XpStackWidget self = XpStackWidgetCast(w);
 
@@ -431,7 +455,7 @@ void XpStackSetActiveChild(Widget w, int i)
     }
 }
 
-int XpStackGetActiveChild(Widget w)
+int XpStackGetActiveWidget(Widget w)
 {
     XpStackWidget self = XpStackWidgetCast(w);
 
@@ -498,9 +522,9 @@ XpStackClassRec xpStackClassRec =
 	/* resources                */ constraint_resources,
 	/* num_resources            */ XtNumber(constraint_resources),
 	/* constraint_size          */ sizeof(XpStackConstraintRec), 
-	/* initialize               */ 0,
+	/* initialize               */ ConstraintInitialize,
 	/* destroy                  */ 0,
-	/* set_values               */ 0,
+	/* set_values               */ ConstraintSetValues,
 	/* extension                */ 0
     },
 

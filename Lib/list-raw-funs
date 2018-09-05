@@ -113,9 +113,11 @@ my @noLocaleStuff = qw(IM$ ^XGetIM IC$ ^XGetIC ^XSetIC ^XUnsetIC
 my @noAllocators = qw(XtFree XtMalloc XtRealloc XtCalloc XtNew XtNewString ^XFree ^Xpermalloc);
 
 my @noMisc = qw(^XVa XQueryKeymap XrmQGetSearchList XrmQGetSearchResource
+		XQueryTree
 		^XtVa ^XmVa ^XtCvt ^XmCvt
 		XtParent XtAddCallback XtMergeArgLists
 		XmCvtXmStringToText XmCvtTextToXmString XmListYToPos
+		XtCreatePopupShell
 		XtAppNextEvent XtAppPeekEvent);
 
 my @noGetValues = qw(XtGetActionList XtGetApplicationNameAndClass XtGetApplicationResources
@@ -129,9 +131,13 @@ my @no_SGI_Stuff = qw(OC OM IM ConnectionWatch XInternAtoms
 		      XDirectionalDependentDrawing XProcessInternalConnection
 		      XGetAtomNames XInternalConnectionNumbers XInitImage);
 
+# This breaks severely when called on a non-widget so I've protected them
+# in the XS layer.
+my @no_core_dumps = qw(XtManageChild XtUnmanageChild);
+
 my $code = "sub ignore_function { my(\$f) = \@_;\n";
 foreach my $pattern (@noXlibExtensions, @noPredicates, @noLocaleStuff,
-		     @noAllocators, @noMisc, @noGetValues, @no_SGI_Stuff)
+		     @noAllocators, @noMisc, @noGetValues, @no_SGI_Stuff, @no_core_dumps)
 {
     $code .= " return 1 if (\$f =~ m/$pattern/);\n";
 }
@@ -296,9 +302,15 @@ EOF
 		}
 
 		for (my $i = 0; $i < scalar @arg_decl; ++$i) {
-		    if (matches_IN_OUT_argument($arg_decl[$i])) {
-			$arg_decl[$i] =~ s|\*| |;
-			$arg_decl[$i] =~ s|(\w+)$|&$1|;
+		    my ($in_out, $init) = matches_IN_OUT_argument($arg_decl[$i]);
+		    if ($in_out > 0) {
+			if ($in_out == 2) {
+			    $arg_decl[$i] =~ s|\*| |;
+			    $arg_decl[$i] =~ s|(\w+)$|&$1|;
+			}
+			if (defined $init) {
+			    $arg_decl[$i] .= " = $init";
+			}
 			push @return_values, $arg_list[$i],
 		    }
 		}
@@ -354,17 +366,45 @@ exit 0;
 sub matches_IN_OUT_argument {
     my($arg) = @_;
 
-    if (($arg =~ m|^\s*XrmDatabase\s+\*\s|) ||
-	($arg =~ m|^\s*Pixmap\s+\*\s| && $arg =~ m|return$|) ||
-	($arg =~ m|^\s*Window\s+\*\s| && $arg =~ m|return$|) ||
-	($arg =~ m|^\s*Atom\s+\*\s| && $arg =~ m|return$|) ||
-	($arg =~ m|^\s*int\s+\*\s| && $arg =~ m|return$|) ||
-	($arg =~ m|^\s*unsigned int\s+\*\s| && $arg =~ m|return$|) ||
-	($arg =~ m|^\s*long\s+\*\s| && $arg =~ m|return$|) ||
-	($arg =~ m|^\s*unsigned long\s+\*\s| && $arg =~ m|return$|))
+    # pure output: remove one level of indirection in output declaration
+    if    (($arg =~ m|^\s*XrmRepresentation\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*char\s+\*\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*unsigned\s+char\s+\*\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*Pixmap\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*Window\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*Atom\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*int\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*unsigned int\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*long\s+\*\s| && $arg =~ m|return$|) ||
+	   ($arg =~ m|^\s*unsigned long\s+\*\s| && $arg =~ m|return$|))
     {
-	1;
+	return (2, 'NO_INIT');
     }
+
+    # input/output: remove one level of indirection in output declaration
+    elsif (($arg =~ m|^\s*XrmDatabase\s+\*\s|))
+    {
+	return (2);
+    }
+
+    # input/output: keep existing output declaration
+    elsif (($arg =~ m|^\s*XColor\s+\*\s| && $arg =~ m|in_out$|))
+    {
+	return (1);
+    }
+
+    # the rest are custom argument conversions
+
+    elsif (($arg =~ m!^\s*(XrmValue|XColor)\s+\*\s!))
+    {
+	my $type = $1;
+	if ($arg =~ m|return$|) {
+	    return (1, "($type *)malloc(sizeof($type));");
+	}
+    }
+
+    # not an output declaration
+    return (0);
 }
 
 sub format_arg_decl {

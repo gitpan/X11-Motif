@@ -658,6 +658,7 @@ sub create_dialog {
     my $dir_label = give $form -Label, -text => 'Folder: ',
 			-alignment => X::Motif::XmALIGNMENT_END;
     my $dir = give $form -Label, -text => $self->{'dir'},
+			-alignment => X::Motif::XmALIGNMENT_BEGINNING,
 			-resizable => X::False;
     my $file_label = give $form -Label, -text => 'File: ',
 			-alignment => X::Motif::XmALIGNMENT_END,

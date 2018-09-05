@@ -71,14 +71,14 @@ examples/info-box.pl
 examples/list-res.pl
 examples/matrix.pl
 examples/multi-list.pl
+examples/password.pl
 examples/select-file.pl
 examples/test-xt.pl
 examples/test.pl
+examples/small-test.pl
 examples/text-set-value.pl
+examples/textedit.pl
 examples/sc.pl
-examples/CPSC.pm
-examples/Outline.pm
-examples/upload.pl
 examples/xrt.pl
 examples/xrt-upload.pl
 examples/xppcamshaft.pl

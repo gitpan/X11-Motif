@@ -236,7 +236,7 @@ static void redraw_tabs(XpFolderWidget self)
     int i, position;
 
     tabs = GetTabsWidget(self);
-    active_child = XpStackGetActiveChild((Widget)stack);
+    active_child = XpStackGetActiveWidget((Widget)stack);
 
     /* The first pass through the stack children figures out whether there
        will be undisplayed (or partially displayed) tabs to either the left

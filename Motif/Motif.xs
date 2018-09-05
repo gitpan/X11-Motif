@@ -53,6 +53,8 @@ char *XmStringCharSet_Package = "X::Motif::StringCharSet";
 char *XmTextSource_Package = "X::Motif::TextSource";
 char *XmStringContext_Package = "X::Motif::StringContext";
 
+char *XpOutlineStylePtr_Package = "X::Motif::XpOutlineStyle";
+
 
 static SV *cvt_from_XmString(Widget w, WidgetClass wc, XtOutArg in)
 {
@@ -80,24 +82,24 @@ static SV *cvt_from_UserData(Widget w, WidgetClass wc, XtOutArg in)
        The above approach was modified slightly to take advantage of the
        fact that SV pointers will be evenly aligned.  (Is there any
        architecture that supports Motif that this isn't true for?)  If
-       an odd pointer is found, it is treated as a boxed unsigned integer. */
+       an odd pointer is found, it is treated as a boxed integer. */
 
     if (r) {
-	unsigned int v = (unsigned int)r;
+	int v = (int)r;
 
 	if (v & 1) {
 	    /* A "boxed" value was stored instead of an SV.  This is the
 	       fastest and most efficient way of storing user data, but only
-	       positive integers less than PERL_INT_MAX can be stored. */
+	       small integers can be stored. */
 
-	    return sv_2mortal(newSViv((int)(v >> 1)));
+	    return sv_2mortal(newSViv(v >> 1));
 	}
-	else if (v < 200) {
+	else if (v >= 0 && v < 200) {
 	    /* Somebody is using C code with Perl -- a warning might
 	       be appropriate here because this will almost always indicate
 	       a bug. */
 
-	    return sv_2mortal(newSViv((int)v));
+	    return sv_2mortal(newSViv(v));
 	}
 	else {
 	    /* Assume that any other value is an SV *.  If this module is
@@ -389,17 +391,38 @@ XmIsManager(self)
 
 
 
+MODULE = X11::Motif	PACKAGE = X::Motif::XpOutlineStyle
+
+XpOutlineStyle *
+create(opened_pixmap, opened_mask, closed_pixmap, closed_mask)
+	Pixmap		opened_pixmap
+	Pixmap		opened_mask
+	Pixmap		closed_pixmap
+	Pixmap		closed_mask
+	CODE:
+	    RETVAL = (XpOutlineStyle *)malloc(sizeof(XpOutlineStyle));
+	    RETVAL->opened_icon = opened_pixmap;
+	    RETVAL->opened_icon_mask = opened_mask;
+	    RETVAL->closed_icon = closed_pixmap;
+	    RETVAL->closed_icon_mask = closed_mask;
+	    RETVAL->font = 0;
+	    RETVAL->gc = 0;
+	OUTPUT:
+	    RETVAL
+
+
 MODULE = X11::Motif	PACKAGE = X::Toolkit::Widget
 
 void
-XpLinedAreaInsertOutlineColumn(w, col, width, object_ref, event_proc = 0)
+XpLinedAreaInsertOutlineColumn(w, col, width, vert_divider, object_ref, event_proc = 0)
 	Widget		w
 	int		col
 	int		width
+	int		vert_divider
 	SV *		object_ref
 	SV *		event_proc
 	PPCODE:
-	    if (object_ref && SvROK(object_ref) && sv_derived_from(object_ref, "Outline")) {
+	    if (object_ref && SvROK(object_ref)) {
 		/* memory leak of event_proc and object_ref - FIXME */
 
 		if (event_proc) {
@@ -408,7 +431,7 @@ XpLinedAreaInsertOutlineColumn(w, col, width, object_ref, event_proc = 0)
 
 		XpLinedAreaInsertColumn(w, col, SvREFCNT_inc(object_ref),
 					XpLinedAreaWidth, width,
-					XpLinedAreaDivideVertical, 0,
+					XpLinedAreaDivideVertical, vert_divider,
 					XpLinedAreaCallEvent, xp_outliner_event_handler, event_proc,
 					XpLinedAreaCallExpose, xp_outliner_expose_handler, 0,
 					0);
@@ -447,6 +470,30 @@ XpLinedAreaScrollToRow(w, row)
 	Widget		w
 	int		row
 
+int
+XpStackNumChildren(w)
+	Widget		w
+
+int
+XpStackChildWidgetOrder(w)
+	Widget		w
+
+void
+XpStackNextWidget(w)
+	Widget		w
+
+void
+XpStackPreviousWidget(w)
+	Widget		w
+
+void
+XpStackGotoWidget(w, i)
+	Widget		w
+	int		i
+
+int
+XpStackGetActiveWidget(w)
+	Widget		w
 
 
 MODULE = X11::Motif	PACKAGE = X::Motif
@@ -455,6 +502,42 @@ int
 XmListYToPos(w, y)
 	Widget		w
 	Position	y
+
+void
+_internal_convert_XmStringTable(data, count)
+	SV *		data
+	int		count
+	PPCODE:
+	    {
+		XmStringTable table = (SvROK(data)) ? (XmStringTable)SvIV(SvRV(data)) : 0;
+
+		if (table)
+		{
+		    int i = 0;
+		    AV *array = newAV();
+
+		    if (array)
+		    {
+			av_extend(array, count);
+			while (i < count)
+			{
+			    char *s;
+			    XmStringGetLtoR(table[i], XmSTRING_DEFAULT_CHARSET, &s);
+			    if (s)
+			    {
+				av_store(array, i, newSVpv(s, strlen(s)));
+				XtFree(s);
+			    }
+			    else
+			    {
+				av_store(array, i, newSVpv("", 0));
+			    }
+			    ++i;
+			}
+		    }
+		    XPUSHs(sv_2mortal(newRV_inc((SV *)array)));
+		}
+	    }
 
 # ----------------------------------------------------------------------
 # The next section was derived from an automatically generated XS
@@ -2539,24 +2622,99 @@ MODULE = X11::Motif	PACKAGE = X::Motif::TextVerifyCallData
 void
 text(self)
 	XmTextVerifyCallbackStruct *	self
-	PREINIT:
-	    SV *sv;
 	PPCODE:
-	    if (self->reason == XmCR_MODIFYING_TEXT_VALUE ||
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE ||
 		self->reason == XmCR_MOVING_INSERT_CURSOR)
 	    {
 		if (self->text && self->text->ptr) {
-		    sv = sv_newmortal();
+		    SV *sv = sv_newmortal();
 		    sv_setpvn(sv, self->text->ptr, self->text->length);
 		    PUSHs(sv);
 		}
 	    }
 
 void
+change_text(self, text)
+	XmTextVerifyCallbackStruct *	self
+	char *				text
+	PPCODE:
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE ||
+		self->reason == XmCR_MOVING_INSERT_CURSOR)
+	    {
+		if (self->text && self->text->ptr) {
+		    int len = self->text->length;
+		    char *dst = self->text->ptr;
+		    while (len > 0) {
+			if (*text) {
+			    *dst++ = *text++;
+			}
+			else {
+			    self->text->length -= len;
+			    break;
+			}
+			--len;
+		    }
+		}
+	    }
+
+void
+start_pos(self)
+	XmTextVerifyCallbackStruct *	self
+	PPCODE:
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE)
+	    {
+		SV *sv = sv_2mortal(newSViv(self->startPos));
+		PUSHs(sv);
+	    }
+
+int
+end_pos(self)
+	XmTextVerifyCallbackStruct *	self
+	CODE:
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE ||
+		self->reason == XmCR_MOVING_INSERT_CURSOR)
+	    {
+		RETVAL = self->endPos;
+	    }
+	OUTPUT:
+	    RETVAL
+
+int
+current_insert(self)
+	XmTextVerifyCallbackStruct *	self
+	CODE:
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE ||
+		self->reason == XmCR_MOVING_INSERT_CURSOR)
+	    {
+		RETVAL = self->currInsert;
+	    }
+	OUTPUT:
+	    RETVAL
+
+int
+new_insert(self)
+	XmTextVerifyCallbackStruct *	self
+	CODE:
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE ||
+		self->reason == XmCR_MOVING_INSERT_CURSOR)
+	    {
+		RETVAL = self->newInsert;
+	    }
+	OUTPUT:
+	    RETVAL
+
+void
 deny_change(self)
 	XmTextVerifyCallbackStruct *	self
 	CODE:
-	    if (self->reason == XmCR_MODIFYING_TEXT_VALUE ||
+	    if (self->reason == XmCR_LOSING_FOCUS ||
+		self->reason == XmCR_MODIFYING_TEXT_VALUE ||
 		self->reason == XmCR_MOVING_INSERT_CURSOR)
 	    {
 		self->doit = 0;
@@ -2735,8 +2893,8 @@ doit(self, set = -1)
 
 
 BOOT:
-    register_resource_converter_by_type("XmString",	0, cvt_from_XmString);
-    register_resource_converter_by_class("UserData",	0, cvt_from_UserData);
+    register_resource_converter_by_type("XmString",	    0, cvt_from_XmString);
+    register_resource_converter_by_class("UserData",	    0, cvt_from_UserData);
     /* when linking statically the Toolkit's bootstrap statement is
        inserted into the perl main(). */
 #ifndef HAVE_TOOLKIT_BOOT
