@@ -14,7 +14,7 @@ use X11::Motif;
 
 my $toplevel = X::Toolkit::initialize("MultiList");
 
-my $form = give $toplevel -Form;
+my $form = give $toplevel -Form, -horizontalSpacing => 5, -verticalSpacing => 5;
 
     my $view = give $form -ScrolledWindow,
 	    -width => 500, -height => 100,
@@ -24,7 +24,7 @@ my $form = give $toplevel -Form;
 
 	my $list_group = give $view -Form;
 
-	    my $list_1 = give $list_group -List;
+	    my $list_1 = give $list_group -List, -selectionPolicy => 'extended_select';
 	    my $list_2 = give $list_group -List;
 	    my $list_3 = give $list_group -List;
 
@@ -32,7 +32,10 @@ my $form = give $toplevel -Form;
 	constrain $list_2 -top => -form, -bottom => -form, -left => $list_1;
 	constrain $list_3 -top => -form, -bottom => -form, -left => $list_2, -right => -form;
 
-constrain $view -top => -form, -bottom => -form, -left => -form, -right => -form;
+    my $ok = give $form -Button, -name => 'OK', -command => \&do_dump_selection;
+
+constrain $view -top => -form, -bottom => $ok, -left => -form, -right => -form;
+constrain $ok -bottom => -form, -right => -form;
 
 my @info;
 my $row = 1;
@@ -48,3 +51,11 @@ change $list_2 -visibleItemCount => $row;
 change $list_3 -visibleItemCount => $row;
 
 handle $toplevel;
+
+sub do_dump_selection {
+    my $list = query $list_1 -selection;
+    print "selection is:\n";
+    foreach (@{$list}) {
+	print "  '$_'\n";
+    }
+}

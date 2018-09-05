@@ -9,12 +9,22 @@ use X11::Xpm;
 print "Using X11::Motif version $X11::Motif::VERSION.\n";
 print "This is beta #", X11::Motif::beta_version(), "\n" if (X11::Motif::beta_version());
 
-my $toplevel = X::Toolkit::initialize("Example");
-my $display = $toplevel->XtDisplay();
+my $toplevel = X::Toolkit::initialize("Example",
+					-colors => -max,
+					-colormap => -readonly);
 
-my $form = give $toplevel -Form;
+print "initialized Xt\n";
 
-my $menubar = give $form -MenuBar;
+my $display = $toplevel->XtDisplay;
+
+my $folder = give $toplevel -Folder;
+my $stack = X::Toolkit::search_from_parent($folder, 'stack');
+
+my $form1 = give $stack -Form, -layerName => 'Weird';
+my $form2 = give $stack -Form, -layerName => 'Demo';
+my $form3 = give $stack -Form, -layerName => 'Stuff';
+
+my $menubar = give $form1 -MenuBar;
 my $menu;
 my $submenu;
 
@@ -34,7 +44,7 @@ $menu = give $menubar -Menu, -name => 'Edit';
 $menu = give $menubar -Menu, -name => 'Help';
 	give $menu -Button, -text => 'Help!';
 
-my $subform = give $form -Form;
+my $subform = give $form1 -Form;
 
 my $hello = give $subform -Label,
 		-background => 'yellow',
@@ -44,10 +54,10 @@ my $hello = give $subform -Label,
 my $quit = give $subform -Button,
 		-command => sub { exit };
 
-#my($icon, $mask) = X::Xpm::ReadFileToPixmap($display, X::DefaultRootWindow($display), 'data/quit.xpm');
-my($icon, $mask) = X::Xpm::CreatePixmapFromData($display, X::DefaultRootWindow($display), <<"EOF");
+#my($icon, $mask) = X::Xpm::CreatePixmap($toplevel, -file => 'data/quit.xpm');
+my($icon, $mask) = X::Xpm::CreatePixmap($toplevel, -data => <<"EOF");
 32 32 3 1 
-  c white
+  c None
 . c black
 X c red
           ............          
@@ -94,6 +104,8 @@ else {
 my $toggle = give $subform -Toggle,
 		-text => 'Are you bored?';
 
+my $cursor;
+
 sub do_Show {
     my($widget, $client, $call) = @_;
 
@@ -117,23 +129,31 @@ sub do_Show {
 	print "       Y = ", $call->event->y(), "\n";
     }
 
-    my @v = query $widget 'x', 'y', 'topAttachment', 'bottomAttachment', 'labelString', 'mnemonicCharSet';
+    my @v = query $widget 'x', 'y', 'managed', 'topAttachment', 'bottomAttachment', 'labelString', 'name', 'mnemonicCharSet';
     print "widget values = ", join(', ', @v), "\n";
-    print "label string = ", $v[4]->plain(), "\n";
+    print "label string = ", $v[5]->plain(), "\n";
 
-    if ($quit->IsManaged) {
+    if (query $quit -managed) {
 	change $quit -managed => X::False;
 	change $widget -text => 'show';
+
+	if (!$cursor) {
+	    $cursor = X::CreateFontCursor($toplevel->Display, 150);
+	}
+
+	X::DefineCursor($toplevel->Display, $toplevel->Window, $cursor);
     }
     else {
 	change $quit -managed => X::True;
 	change $widget -text => 'hide';
+
+	X::UndefineCursor($toplevel->Display, $toplevel->Window);
     }
 }
 
 my $hide = give $subform -Button,
 		-text => 'hide',
-		-userData => 17, # [ $subform, 'testing', 1, 2, 3 ],
+		-userData => [ $subform, 'testing', 1, 2, 3 ],
 		-command => [\&do_Show, 10];
 
 #arrange $subform -fill => 'xy', -top => $hello, -left => [ $quit, $hide ];
@@ -158,6 +178,6 @@ constrain $quit   -top => 1, -bottom => 2, @fill_sides;
 constrain $toggle -top => 2, -bottom => 3, @fill_sides;
 constrain $hide   -top => 3, -bottom => -form, @fill_sides;
 
-arrange $form -fill => 'xy', -top => [ $menubar, $subform ];
+arrange $form1 -fill => 'xy', -top => [ $menubar, $subform ];
 
 handle $toplevel;

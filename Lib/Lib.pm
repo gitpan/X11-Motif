@@ -36,11 +36,12 @@ sub alias_trimmed_pattern {
 }
 
 sub export_pattern {
-    my($stab, $pattern) = @_;
+    my($stab, $pattern, $pkg) = @_;
 
-    my $pkg = caller(1);
     my $key;
     my $val;
+
+    ($pkg) = caller(1) if (!$pkg);
 
     while (($key, $val) = each(%{$stab})) {
 	local(*entry) = $val;
@@ -54,10 +55,11 @@ sub export_pattern {
 }
 
 sub export_symbol {
-    my($stab, $symbol) = @_;
+    my($stab, $symbol, $pkg) = @_;
 
-    my $pkg = caller(1);
     my $val = $stab->{$symbol};
+
+    ($pkg) = caller(1) if (!$pkg);
 
     if (defined $val) {
 	local(*entry) = $val;
@@ -128,6 +130,52 @@ package X::Pixmap;
     use vars qw(@ISA);
     @ISA = qw(X::Drawable);
 
+package X::Event;
+
+    sub synthetic {
+	my $classname = shift;
+	my $type = shift;
+
+	my $event = X::Event::internal_new($type);
+	my $window;
+	my $screen;
+
+	if (@_) {
+	    if (ref($_[0]) eq 'X::Display') {
+		my $dpy = shift;
+		$event->set_display($dpy);
+		$screen = X::DefaultScreenOfDisplay($dpy);
+		$window = X::DefaultRootWindow($dpy);
+	    }
+	    elsif (ref($_[0]) eq 'X::Screen') {
+		$screen = shift;
+		$event->set_display(X::DisplayOfScreen($screen));
+		$window = X::RootWindowOfScreen($screen);
+	    }
+	    elsif (ref($_[0])) {
+		my $w = shift;
+		$event->set_display($w->Display);
+		$screen = $w->Screen;
+		$window = $w->Window;
+	    }
+
+	    if (@_ && ref($_[0]) eq 'X::Window') {
+		$window = shift;
+	    }
+	}
+
+	if ($window) {
+	    $event->set_window($window);
+	}
+
+	$event->complete($screen, $window, @_);
+	$event;
+    }
+
+    sub complete {
+	my($event, $screen, $window, @options) = @_;
+    }
+
 # Additional pure-virtual events are inserted into the event
 # hierarchy to avoid duplicate definitions of all the member
 # access functions.  Not sure why MIT didn't do this to begin
@@ -137,6 +185,27 @@ package X::Event::_XY;
     use vars qw(@ISA);
     @ISA = qw(X::Event);
 
+    sub complete {
+	my($event, $screen, $window, $options) = @_;
+
+	if (defined $screen) {
+	    $event->set_root(X::RootWindowOfScreen($screen));
+	}
+
+	my $x = 1;
+	my $y = 1;
+
+	if (ref($options) eq 'ARRAY' && @{$options} > 2) {
+	    $x = shift @{$options};
+	    $y = shift @{$options};
+	}
+
+	$event->set_x($x);
+	$event->set_y($y);
+
+	$event->set_time(X::CurrentTime);
+    }
+
 package X::Event::MotionEvent;
     use vars qw(@ISA);
     @ISA = qw(X::Event::_XY);
@@ -145,13 +214,53 @@ package X::Event::ButtonEvent;
     use vars qw(@ISA);
     @ISA = qw(X::Event::_XY);
 
+    sub complete {
+	my($event, $screen, $window, @options) = @_;
+
+	X::Event::_XY::complete($event, $screen, $window, \@options);
+
+	my $state = 0;
+
+	if (@options > 1) {
+	    $state = shift(@options);
+	}
+
+	my $button = shift(@options) || X::Button1;
+
+	$event->set_state($state);
+	$event->set_button($button);
+    }
+
 package X::Event::ButtonPressedEvent;
+    # This event class is identical to ButtonEvent. It is
+    # only carried around as a separate class because some
+    # Widget sets require ButtonPress events (and they
+    # don't check the event type field because the function
+    # prototypes require a ButtonPress object).
+
     use vars qw(@ISA);
     @ISA = qw(X::Event::ButtonEvent);
 
 package X::Event::KeyEvent;
     use vars qw(@ISA);
     @ISA = qw(X::Event::_XY);
+
+    sub complete {
+	my($event, $screen, $window, @options) = @_;
+
+	X::Event::_XY::complete($event, $screen, $window, \@options);
+
+	my $state = 0;
+
+	if (@options > 1) {
+	    $state = shift(@options);
+	}
+
+	my $keycode = shift(@options) || 0x020;
+
+	$event->set_state($state);
+	$event->set_keycode($keycode);
+    }
 
 package X::Event::CrossingEvent;
     use vars qw(@ISA);

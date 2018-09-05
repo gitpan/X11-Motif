@@ -4,7 +4,7 @@ use blib;
 
 use strict;
 use X11::Motif qw(XmALIGNMENT_END);
-use Math::Units;
+use Convert::Units;
 
 my $toplevel = X::Toolkit::initialize("CvtUnits");
 
@@ -73,7 +73,7 @@ change $out_unit -menuHistory => $w;
 
 sub do_compute {
     my $v = query $in_value -text;
-    $v = Math::Units::Convert($v, $in_u, $out_u);
+    $v = Convert::Units::convert($v, $in_u, $out_u);
     change $out_value -text => "$v";
 }
 

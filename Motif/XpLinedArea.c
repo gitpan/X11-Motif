@@ -59,10 +59,10 @@ static XtResource resources[] =
       Offset(altBackground), XtRString, "XtDefaultBackground" },
 
     { XtNindentationIncr, XtCIndentationIncr, XtRInt, sizeof(int),
-      Offset(indentationIncr), XtRImmediate, (XtPointer)0 },
+      Offset(indentationIncr), XtRImmediate, (XtPointer)24 },
 
     { XtNinternalPadding, XtCInternalPadding, XtRInt, sizeof(int),
-      Offset(internalPadding), XtRImmediate, (XtPointer)0 },
+      Offset(internalPadding), XtRImmediate, (XtPointer)4 },
 };
 
 #undef Offset
@@ -1234,6 +1234,16 @@ static AV *get_array(SV *scalar)
     return 0;
 }
 
+static void *get_object(SV *scalar, char *class_name)
+{
+    if (scalar && sv_derived_from(scalar, class_name)) {
+	IV tmp = SvIV((SV *)SvRV(scalar));
+	return (void *)tmp;
+    }
+
+    return 0;
+}
+
 static void draw_arrow(Display *d, Window w, GC gc, short x, short y, int height)
 {
     static XPoint vertices[] = {
@@ -1268,6 +1278,9 @@ void xp_outliner_expose_handler(Widget w, GC gc, XFontStruct *font, XRectangle *
 	char *label;
 	int label_len;
 
+	Display *dpy = XtDisplay(w);
+	Window win = XtWindow(w);
+
 	switch (col) {
 	    case 0:
 		label = get_string(get_field(perl_cell, "-label", 6), &label_len);
@@ -1275,34 +1288,73 @@ void xp_outliner_expose_handler(Widget w, GC gc, XFontStruct *font, XRectangle *
 		if (label && label_len > 0) {
 		    XGCValues gc_values;
 
+		    int internalPadding = self->xpLinedArea.internalPadding;
+		    int indentationIncr = self->xpLinedArea.indentationIncr;
+
+		    int icon_width = 16; /* FIXME -- this should be a resource */
+
 		    int indent = get_integer(get_field(perl_cell, "-indent", 7)) *
-			         self->xpLinedArea.indentationIncr;
+			         indentationIncr;
+
 		    int flags = get_integer(get_field(perl_cell, "-flags", 6));
+
+		    XpOutlineStyle *style = get_object(get_field(perl_cell, "-style", 6),
+						       "X::Motif::XpOutlineStyle");
+
+		    int x = area->x + indent + internalPadding;
+
+		    if (flags & 32) {
+			draw_arrow(dpy, win, gc,
+				   x - indentationIncr / 2, area->y, area->height);
+		    }
+
+		    if (style) {
+			int y = area->y + area->height - font->descent - icon_width + 1;
+
+			XSetClipOrigin(dpy, gc, x, y);
+
+			if (flags & 2) {
+			    if (style->opened_icon) {
+				if (style->opened_icon_mask) {
+				    XSetClipMask(dpy, gc, style->opened_icon_mask);
+				}
+				XCopyArea(dpy, style->opened_icon, win, gc,
+					  0, 0, icon_width, icon_width,
+					  x, y);
+			    }
+			}
+			else {
+			    if (style->closed_icon) {
+				if (style->closed_icon_mask) {
+				    XSetClipMask(dpy, gc, style->closed_icon_mask);
+				}
+				XCopyArea(dpy, style->closed_icon, win, gc,
+					  0, 0, icon_width, icon_width,
+					  x, y);
+			    }
+			}
+
+			x += icon_width + internalPadding;
+			XSetClipMask(dpy, gc, None);
+		    }
 
 		    if (flags & 1) {
 			int direction, ascent, descent;
 			XCharStruct info;
 
 			XTextExtents(font, label, label_len, &direction, &ascent, &descent, &info);
-			XFillRectangle(XtDisplay(w), XtWindow(w), gc,
-				       area->x + indent, area->y,
-				       info.rbearing + info.lbearing, area->height);
-			XGetGCValues(XtDisplay(w), gc, GCForeground, &gc_values);
-			XSetForeground(XtDisplay(w), gc, XWhitePixelOfScreen(XtScreen(w)));
+			XFillRectangle(dpy, win, gc, x - 1, area->y,
+				       info.rbearing + info.lbearing + 2, area->height);
+			XGetGCValues(dpy, gc, GCForeground, &gc_values);
+			XSetForeground(dpy, gc, self->core.background_pixel);
 		    }
 
-		    XDrawString(XtDisplay(w), XtWindow(w), gc,
-				area->x + indent, area->y + area->height - font->descent,
+		    XDrawString(dpy, win, gc,
+				x, area->y + area->height - font->descent,
 				label, label_len);
 
 		    if (flags & 1) {
-			XSetForeground(XtDisplay(w), gc, gc_values.foreground);
-		    }
-
-		    if (flags & 32) {
-			draw_arrow(XtDisplay(w), XtWindow(w), gc,
-				   area->x + self->xpLinedArea.indentationIncr / 2, area->y,
-				   area->height);
+			XSetForeground(dpy, gc, gc_values.foreground);
 		    }
 		}
 		break;
@@ -1314,9 +1366,37 @@ void xp_outliner_expose_handler(Widget w, GC gc, XFontStruct *font, XRectangle *
 		    label = get_string(get_element(perl_array, col), &label_len);
 
 		    if (label && label_len > 0) {
-			XDrawString(XtDisplay(w), XtWindow(w), gc,
-				    area->x, area->y + area->height - font->descent,
-				    label, label_len);
+			int x = area->x;
+			int y = area->y + area->height - font->descent;
+
+			if (label[0] == '\t' && label[1] != 0) {
+			    char format = label[1];
+
+			    int direction, ascent, descent;
+			    XCharStruct info;
+
+			    label += 2;
+			    label_len -= 2;
+
+			    XTextExtents(font, label, label_len, &direction,
+					 &ascent, &descent, &info);
+
+			    switch (format) {
+				case '<':
+				    break;
+
+				case '>':
+				    x = area->x + area->width - info.rbearing - info.lbearing;
+				    break;
+
+				case '|':
+				    x = area->x + (area->width - info.rbearing - info.lbearing) / 2;
+				    break;
+			    }
+			}
+
+			XDrawString(dpy, win, gc,
+				    x, y, label, label_len);
 		    }
 		}
 		break;

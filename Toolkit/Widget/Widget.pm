@@ -15,7 +15,8 @@ use vars qw(%class_registry %resource_registry %resource_alias
 	    %constraint_resource_registry %constraint_resource_alias
 	    %resource_conversion_mandatory %resource_conversion_prohibited
 	    %class_converter_to %type_converter_to %type_registry
-	    %constraint_handlers %call_data_registry %resource_hints);
+	    %constraint_handlers %call_data_registry %resource_hints
+	    %synthetic_resource_registry);
 
 %class_registry = ();
 %resource_registry = ();
@@ -29,8 +30,13 @@ use vars qw(%class_registry %resource_registry %resource_alias
 %type_registry = ();
 %constraint_handlers = ();
 %call_data_registry = ();
+%synthetic_resource_registry = ();
 
 $resource_alias{'Core'} = { 'bg' => 'background', 'fg' => 'foreground' };
+$synthetic_resource_registry{'Core'}{'name'} = [ undef, \&synth_get_name ];
+$synthetic_resource_registry{'Core'}{'parent'} = [ undef, \&synth_get_parent ];
+$synthetic_resource_registry{'Core'}{'managed'} = [ \&synth_set_managed, \&synth_get_managed ];
+$synthetic_resource_registry{'Core'}{'mapped'} = [ \&synth_set_mapped, \&synth_get_mapped ];
 
 # Resource Hints:
 #
@@ -249,10 +255,12 @@ sub build_resource_table {
     my $parent_type_name = shift;
     my $resources = shift;
     my $callbacks = shift;
-    my $pseudo_resources = shift;
+    my $synthetic_resources = shift;
 
     my $alias = $resource_alias{$type_name};
     my $registry = $resource_registry{$type_name};
+    my $synthetic_registry = $synthetic_resource_registry{$type_name};
+    my $core_synthetic_registry = $synthetic_resource_registry{'Core'};
 
     my $constraint_alias;
     my $constraint_registry;
@@ -288,25 +296,12 @@ sub build_resource_table {
 	    set_resource($res_name => $value,
 			 $constraint_registry, $resources, $callbacks);
 	}
-	elsif ($res_name eq 'name') {
-	    $pseudo_resources->{'name'} = $value
+	elsif (defined $synthetic_registry->{$res_name}) {
+	    $synthetic_resources->{$res_name} = $value;
 	}
-	elsif ($res_name eq 'managed') {
-	    $pseudo_resources->{'managed'} = X::cvt_to_Boolean($value);
-	}
-	elsif ($res_name eq 'mapped') {
-	    $pseudo_resources->{'mapped'} = X::cvt_to_Boolean($value);
-	}
-	elsif ($res_name eq 'xy') {
-	    my $pos = $value;
-	    if (ref $pos) {
-		if (defined $pos->[0]) {
-		    set_resource('x' => $pos->[0], $registry, $resources, $callbacks);
-		}
-		if (defined $pos->[1]) {
-		    set_resource('y' => $pos->[1], $registry, $resources, $callbacks);
-		}
-	    }
+	elsif (defined $core_synthetic_registry->{$res_name}) {
+	    $synthetic_registry->{$res_name} = $core_synthetic_registry->{$res_name};
+	    $synthetic_resources->{$res_name} = $value;
 	}
 	else {
 	    carp "resource $res_name not defined on widget class $type_name";
@@ -355,9 +350,12 @@ sub build_resource_query_table {
     my $type_name = shift;
     my $parent_type_name = shift;
     my $resources = shift;
+    my $synthetic_resources = shift;
 
     my $alias = $resource_alias{$type_name};
     my $registry = $resource_registry{$type_name};
+    my $synthetic_registry = $synthetic_resource_registry{$type_name};
+    my $core_synthetic_registry = $synthetic_resource_registry{'Core'};
 
     my $constraint_alias;
     my $constraint_registry;
@@ -372,6 +370,7 @@ sub build_resource_query_table {
     my $i = 0;
     my $info;
     my $hints;
+    my $res_pos = 0;
 
     while ($i < $num) {
 	$res_name = $_[$i++];
@@ -410,9 +409,18 @@ sub build_resource_query_table {
 							$info->[1], $info->[2],
 							$hints);
 	}
+	elsif (defined $synthetic_registry->{$res_name}) {
+	    push @{$synthetic_resources}, $res_name, $res_pos;
+	}
+	elsif (defined $core_synthetic_registry->{$res_name}) {
+	    $synthetic_registry->{$res_name} = $core_synthetic_registry->{$res_name};
+	    push @{$synthetic_resources}, $res_name, $res_pos;
+	}
 	else {
 	    carp "resource $res_name not defined on widget class $type_name";
 	}
+
+	++$res_pos;
     }
 }
 
@@ -514,43 +522,79 @@ sub change {
 
     my %resources = ();
     my %callbacks;
-    my %pseudo_resources = ();
+    my %synthetic_resources = ();
 
     build_resource_table($type_name, $parent_type_name,
-			 \%resources, \%callbacks, \%pseudo_resources, @_);
-
-    if (exists $pseudo_resources{'managed'}) {
-	if ($pseudo_resources{'managed'}) {
-	    $self->Manage();
-	}
-	else {
-	    $self->Unmanage();
-	}
-    }
-
-    if (exists $pseudo_resources{'mapped'}) {
-	if ($self->IsRealized()) {
-	    my $dpy = Display($self);
-	    my $win = Window($self);
-	    if ($pseudo_resources{'mapped'}) {
-		X::MapWindow($dpy, $win);
-	    }
-	    else {
-		X::UnmapWindow($dpy, $win);
-	    }
-	}
-	else {
-	    if ($pseudo_resources{'mapped'}) {
-		$resources{'mappedWhenManaged'} = X::True;
-	    }
-	    else {
-		$resources{'mappedWhenManaged'} = X::False;
-	    }
-	}
-    }
+			 \%resources, \%callbacks, \%synthetic_resources, @_);
 
     $self->priv_XtSetValues(%resources) if (%resources);
     $self->add_callback_set($type_name, \%callbacks);
+
+    my $key; my $value;
+    my $synthetic_registry = $synthetic_resource_registry{$type_name};
+
+    while (($key, $value) = each %synthetic_resources) {
+	my $setter = $synthetic_registry->{$key}[0];
+	if (defined $setter) {
+	    &{$setter}($self, $value);
+	}
+    }
+}
+
+sub synth_get_name {
+    my($self) = @_;
+
+    XtName($self);
+}
+
+sub synth_get_parent {
+    my($self) = @_;
+
+    XtParent($self);
+}
+
+sub synth_set_managed {
+    my($self, $v) = @_;
+
+    if (X::cvt_to_Boolean($v)) {
+	$self->Manage();
+    }
+    else {
+	$self->Unmanage();
+    }
+}
+
+sub synth_get_managed {
+    my($self) = @_;
+
+    XtIsManaged($self);
+}
+
+sub synth_set_mapped {
+    my($self, $v) = @_;
+
+    if ($self->IsRealized()) {
+	my $dpy = Display($self);
+	my $win = Window($self);
+	if ($v) {
+	    X::MapWindow($dpy, $win);
+	}
+	else {
+	    X::UnmapWindow($dpy, $win);
+	}
+    }
+    else {
+	$self->priv_XtSetValues('mappedWhenManaged', ($v) ? X::True : X::False);
+    }
+}
+
+# This is a tricky request because Xt doesn't keep the information.  It
+# actually requires a round trip to the X server.  FIXME
+
+sub synth_get_mapped {
+    my($self) = @_;
+
+    1;
 }
 
 # --------------------------------------------------------------------------------
@@ -589,42 +633,70 @@ sub give {
 
     my %resources = ();
     my %callbacks;
-    my %pseudo_resources = ();
+    my %synthetic_resources = ();
 
     build_resource_table($type_name, Class($parent)->name(),
-			 \%resources, \%callbacks, \%pseudo_resources, @arg_list);
+			 \%resources, \%callbacks, \%synthetic_resources, @arg_list);
 
-    my $name = $pseudo_resources{'name'};
+    my $name = $synthetic_resources{'name'};
     if (!defined $name) {
 	$name = 'an_'.$type_name;
     }
 
-    my $managed = $pseudo_resources{'managed'};
-    if (!defined $managed) {
-	$managed = 1;
+    # Don't use the normal synthetic resource setter for handling
+    # managed widgets during widget creation.  Widget creation is
+    # already *way* too expensive -- calling a synthetic set managed
+    # function every time is too much.
+
+    my $should_manage = $synthetic_resources{'managed'};
+    if (!defined $should_manage) {
+	$should_manage = 1;
     }
+    else {
+	$should_manage = X::cvt_to_Boolean($should_manage);
+	delete $synthetic_resources{'managed'};
+    }
+
+    # Take the widget name out of the synthetic resource list since
+    # the name can only be set at creation time.  (This special cast
+    # stuff bothers me.  Perhaps there should be create/set/get
+    # routines instead of just set/get?  FIXME)
+
+    delete $synthetic_resources{'name'};
 
     my $child;
 
     if (exists($resource_registry{$type_name}{'allowShellResize'})) {
 	$child = X::Toolkit::priv_XtCreatePopupShell($name, $type, $parent, %resources);
 
-	if (!defined $child) {
-	    carp "couldn't create $type_name popup $name";
+	if (defined $child) {
+	    $child->add_callback_set($type_name, \%callbacks);
 	}
 	else {
-	    $child->add_callback_set($type_name, \%callbacks);
+	    carp "couldn't create $type_name popup $name";
 	}
     }
     else {
 	$child = X::Toolkit::priv_XtCreateWidget($name, $type, $parent, %resources);
 
-	if (!defined $child) {
-	    carp "couldn't create $type_name widget $name";
+	if (defined $child) {
+	    $child->add_callback_set($type_name, \%callbacks);
+	    $child->Manage() if ($should_manage);
 	}
 	else {
-	    $child->add_callback_set($type_name, \%callbacks);
-	    $child->Manage() if ($managed && $parent->XtIsWidget());
+	    carp "couldn't create $type_name widget $name";
+	}
+    }
+
+    if (defined $child) {
+	my $key; my $value;
+	my $synthetic_registry = $synthetic_resource_registry{$type_name};
+
+	while (($key, $value) = each %synthetic_resources) {
+	    my $setter = $synthetic_registry->{$key}[0];
+	    if (defined $setter) {
+		&{$setter}($child, $key, $value);
+	    }
 	}
     }
 
@@ -701,16 +773,38 @@ sub query {
     }
 
     my @resources = ();
+    my @synthetic_resources = ();
 
-    build_resource_query_table($type_name, $parent_type_name, \@resources, @_);
+    build_resource_query_table($type_name, $parent_type_name, \@resources,
+			       \@synthetic_resources, @_);
 
-    # also need to handle the pseudo resources like name and managed -- but
-    # this is very tricky because the pseudo resource values must be inserted
-    # into the returned value list in the proper location.  this can be done
-    # with splice().  only do the special splice() code if there are pseudo
-    # resources -- otherwise just do the simple return.
+    my @values = ();
 
-    $self->priv_XtGetValues(@resources) if (@resources);
+    if (@resources) {
+	@values = $self->priv_XtGetValues(@resources);
+    }
+
+    if (@synthetic_resources) {
+	my $i = 0;
+	my $res_name;
+	my $res_pos;
+	my $synthetic_registry = $synthetic_resource_registry{$type_name};
+
+	while ($i < @synthetic_resources) {
+	    $res_name = $synthetic_resources[$i++];
+	    $res_pos = $synthetic_resources[$i++];
+
+	    my $getter = $synthetic_registry->{$res_name}[1];
+	    splice @values, $res_pos, 0, defined($getter) ? &{$getter}($self) : undef;
+	}
+    }
+
+    if (wantarray) {
+	return @values;
+    }
+    else {
+	$values[0];
+    }
 }
 
 # --------------------------------------------------------------------------------
@@ -728,12 +822,31 @@ sub handle {
 
     my $context = $self->GetContext();
     my $nesting_on_entry = $event_loop_nesting;
+
+    ++$event_loop_nesting;
+
+    while ($event_loop_nesting > $nesting_on_entry) {
+	X::Toolkit::DispatchEvent($context->AppNextEvent);
+    }
+}
+
+sub debug_handle {
+    my $self = shift;
+    my $trace = shift;
+
+    if (!$self->IsRealized()) {
+	$self->Realize();
+    }
+
+    my $context = $self->GetContext();
+    my $nesting_on_entry = $event_loop_nesting;
     my $event;
 
     ++$event_loop_nesting;
 
     while ($event_loop_nesting > $nesting_on_entry) {
 	$event = $context->AppNextEvent;
+	&{$trace}($event) if (ref $trace eq 'CODE');
 	X::Toolkit::DispatchEvent($event);
     }
 }

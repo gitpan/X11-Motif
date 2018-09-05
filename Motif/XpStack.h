@@ -19,8 +19,9 @@ extern int XpStackNumChildren(Widget stack);
 extern void XpStackNextWidget(Widget stack);
 extern void XpStackPreviousWidget(Widget stack);
 extern void XpStackGotoWidget(Widget stack, int child);
-extern void XpStackSetActiveChild(Widget w, int i);
-extern int XpStackGetActiveChild(Widget w);
+
+extern void XpStackSetActiveWidget(Widget w, int i);
+extern int XpStackGetActiveWidget(Widget w);
 
 #define XtNoutsideMargin	"outsideMargin"
 #define XtCOutsideMargin	"OutsideMargin"

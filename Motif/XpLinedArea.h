@@ -112,8 +112,12 @@ typedef struct XpOutlineStyleStruct
     /* These attributes are used for specializing the display of a row
        displayed in an XpOutline */
 
-    Pixmap icon;
-    Pixmap icon_mask;
+    Pixmap opened_icon;
+    Pixmap opened_icon_mask;
+
+    Pixmap closed_icon;
+    Pixmap closed_icon_mask;
+
     XFontStruct *font;
 
     GC gc;					/* custom graphics context for this style */

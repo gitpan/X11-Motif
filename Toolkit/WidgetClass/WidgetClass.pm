@@ -47,6 +47,7 @@ sub register {
 
     $X::Toolkit::Widget::resource_registry{$name} = $registry;
     $X::Toolkit::Widget::resource_alias{$name} = $alias;
+    $X::Toolkit::Widget::synthetic_resource_registry{$name} = { };
 
     # ------------------------------------------------------------
     # inherit any resource aliases from the parent(s).  A special

@@ -9,13 +9,14 @@ Pixmap					T_X_ID
 Cursor					T_X_ID
 Colormap				T_X_ID
 GContext				T_X_ID
-KeySym					T_X_ID
-EventMask				T_X_ID
+
+EventMask				T_X_ID_OR_INT
+KeySym					T_X_ID_OR_INT
+Time					T_X_ID_OR_INT
+KeyCode					T_X_ID_OR_INT
 
 Atom					T_X_ID
 VisualID				T_X_ID
-Time					T_X_ID
-KeyCode					T_X_ID
 XContext				T_X_ID
 Pixel					T_X_ID
 
@@ -264,6 +265,11 @@ XbaeMatrixEnterCellCallbackStruct *	T_X_PTR
 XbaeMatrixLeaveCellCallbackStruct *	T_X_PTR
 
 # --------------------------------------------------------------------------------
+# Xp -- Perl-enhanced widgets built into the Motif module
+
+XpOutlineStyle *			T_X_PTR
+
+# --------------------------------------------------------------------------------
 # XRT
 
 XrtTextHandle				T_X_PTR
@@ -291,6 +297,8 @@ Xrt_perl_Float				T_X_PTR
 OUTPUT
 T_X_ID
 	sv_setref_iv($arg, ${ntype}_Package, (IV)$var);
+T_X_ID_OR_INT
+	sv_setref_iv($arg, ${ntype}_Package, (IV)$var);
 T_X_PTR
 	sv_setref_pv($arg, ${ntype}_Package, (void *)$var);
 T_XMSTRING_PTR
@@ -307,6 +315,15 @@ T_X_ID
 	}
 	else
 	    croak(\"$var is not of type %s\", ${ntype}_Package)
+T_X_ID_OR_INT
+	if (SvNOK($arg) || SvIOK($arg)) {
+	    $var = ($type)SvIV($arg);
+	}
+	else if (sv_derived_from($arg, ${ntype}_Package)) {
+	    $var = ($type)SvIV((SV*)SvRV($arg));
+	}
+	else
+	    croak(\"$var is not of type %s\", ${ntype}_Package)
 T_X_PTR
 	if (sv_derived_from($arg, ${ntype}_Package)) {
 	    IV tmp_ = SvIV((SV*)SvRV($arg));
@@ -314,6 +331,17 @@ T_X_PTR
 	}
 	else
 	    croak(\"$var is not of type %s\", ${ntype}_Package)
+T_X_PTR_NIL_OK
+	if (SvOK($arg)) {
+	    if (sv_derived_from($arg, ${ntype}_Package)) {
+		IV tmp_ = SvIV((SV*)SvRV($arg));
+		$var = ($type)tmp_;
+	    }
+	    else
+		croak(\"$var is not of type %s\", ${ntype}_Package);
+	}
+	else
+	   $var = ($type)0
 T_XMSTRING_PTR
 	if (sv_derived_from($arg, XmString_Package)) {
 	    IV tmp_ = SvIV((SV*)SvRV($arg));

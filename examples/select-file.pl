@@ -8,7 +8,7 @@ use lib qw(.);
 use X11::Motif::URLChooser::FTP;
 
 my $toplevel = X::Toolkit::initialize("Example");
-my $chooser = new X11::Motif::URLChooser('ftp://pt0204.pto.ford.com');
+my $chooser = new X11::Motif::URLChooser('ftp://pt0204.poee.ford.com');
 
 while (1) {
     my $filename = $chooser->choose();
